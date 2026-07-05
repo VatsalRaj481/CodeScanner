@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ScanResults } from './components/ScanResults';
 import { scanCodeApi, ScanResponse } from './api/scanner';
-import { Shield, ExternalLink, Sparkles, Terminal } from 'lucide-react';
+import { ExternalLink, Terminal } from 'lucide-react';
 
 const DEMO_CODE = `import sqlite3, os, hashlib
 
@@ -70,22 +70,25 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-gray-100 flex flex-col selection:bg-cyan-900/50">
+    <div className="min-h-screen bg-[#090d16] text-gray-100 flex flex-col selection:bg-indigo-950/60">
       {/* Top Header Navigation */}
-      <header className="border-b border-[#30363d] bg-[#161b22]/90 backdrop-blur sticky top-0 z-50">
+      <header className="border-b border-[#1f293d] bg-[#111625]/90 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Shield className="w-6 h-6 text-white" />
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center">
+              <svg className="w-5.5 h-5.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="M9 11l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-lg font-bold text-gray-100 tracking-tight">AI Security Scanner</h1>
-                <span className="bg-cyan-950 text-cyan-400 border border-cyan-800/60 text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full uppercase">
-                  v1.0 Pro
+                <h1 className="text-sm font-semibold text-gray-100 tracking-tight">AI Security Scanner</h1>
+                <span className="text-[10px] font-mono font-medium text-gray-400 border border-[#1f293d] bg-[#0d1117] px-1.5 py-0.5 rounded">
+                  v1.0.0
                 </span>
               </div>
-              <p className="text-xs text-gray-400">Powered by Google Gemini AI & Automated AST Security Auditing</p>
+              <p className="text-[11px] text-gray-400">Automated static code security and vulnerability auditing</p>
             </div>
           </div>
 
@@ -94,11 +97,10 @@ export const App: React.FC = () => {
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1.5 text-xs text-cyan-400 hover:text-cyan-300 bg-cyan-950/50 hover:bg-cyan-900/60 border border-cyan-800/60 px-3 py-1.5 rounded-lg transition-all"
+              className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-900/40 px-3.5 py-1.5 rounded-lg transition-all"
             >
-              <Sparkles className="w-3.5 h-3.5" />
               <span>Get Gemini API Key</span>
-              <ExternalLink className="w-3 h-3 ml-0.5" />
+              <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
             </a>
           </div>
         </div>
@@ -106,9 +108,9 @@ export const App: React.FC = () => {
 
       {/* Main Application Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Editor Panel (5 cols on lg, 6 cols on xl) */}
-          <div className="lg:col-span-6 xl:col-span-6 flex flex-col">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left Editor Panel */}
+          <div className="lg:col-span-6 xl:col-span-6 flex flex-col h-[680px]">
             <CodeEditor
               code={code}
               setCode={setCode}
@@ -120,21 +122,21 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Right Results Panel (6 cols) */}
-          <div className="lg:col-span-6 xl:col-span-6 flex flex-col">
-            <ScanResults results={results} isLoading={isLoading} error={error} />
+          {/* Right Results Panel */}
+          <div className="lg:col-span-6 xl:col-span-6 flex flex-col h-[680px]">
+            <ScanResults results={results} isLoading={isLoading} error={error} onLoadDemo={handleLoadDemo} />
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-[#30363d] bg-[#161b22] py-4 mt-8">
+      <footer className="border-t border-[#1f293d] bg-[#111625] py-4 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
             <Terminal className="w-4 h-4 text-gray-400" />
             <span>AI Security Scanner — Production Ready Static & Dynamic Analysis</span>
           </div>
-          <div className="flex items-center space-x-2 bg-[#0d1117] px-3 py-1.5 rounded-lg border border-[#30363d] select-none">
+          <div className="flex items-center space-x-2 bg-[#0d1117] px-3 py-1.5 rounded-lg border border-[#1f293d] select-none">
             <span className={`w-2 h-2 rounded-full ${
               backendStatus === 'online' ? 'bg-green-400 animate-pulse-slow' :
               backendStatus === 'checking' ? 'bg-amber-400 animate-pulse' :
