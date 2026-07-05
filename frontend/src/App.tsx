@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ScanResults } from './components/ScanResults';
 import { scanCodeApi, ScanResponse } from './api/scanner';
@@ -27,6 +27,27 @@ export const App: React.FC = () => {
   const [results, setResults] = useState<ScanResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      try {
+        const res = await fetch(apiBaseUrl);
+        if (res.ok) {
+          setBackendStatus('online');
+        } else {
+          setBackendStatus('offline');
+        }
+      } catch (e) {
+        setBackendStatus('offline');
+      }
+    };
+    checkStatus();
+    // Re-check status every 15 seconds
+    const interval = setInterval(checkStatus, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleScan = async () => {
     if (!code.trim()) return;
@@ -113,8 +134,19 @@ export const App: React.FC = () => {
             <Terminal className="w-4 h-4 text-gray-400" />
             <span>AI Security Scanner — Production Ready Static & Dynamic Analysis</span>
           </div>
-          <div>
-            <span>Backend running on <code className="text-cyan-400 font-mono">localhost:8000</code></span>
+          <div className="flex items-center space-x-2 bg-[#0d1117] px-3 py-1.5 rounded-lg border border-[#30363d] select-none">
+            <span className={`w-2 h-2 rounded-full ${
+              backendStatus === 'online' ? 'bg-green-400 animate-pulse-slow' :
+              backendStatus === 'checking' ? 'bg-amber-400 animate-pulse' :
+              'bg-red-500'
+            }`} />
+            <span className="text-gray-400 font-medium font-mono text-[11px] tracking-wide">
+              API STATUS: {
+                backendStatus === 'online' ? 'OPERATIONAL' :
+                backendStatus === 'checking' ? 'CONNECTING...' :
+                'OFFLINE'
+              }
+            </span>
           </div>
         </div>
       </footer>
