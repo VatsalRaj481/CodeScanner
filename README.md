@@ -8,9 +8,13 @@ A production-ready full-stack security vulnerability scanner where developers pa
 
 * **AI-Powered & Fallback Static Analysis**: Automatically leverages Google Gemini API for deep security auditing. If the API key is not configured, the system gracefully falls back to a rules-based static analyzer so it works out of the box!
 * **Interactive Code Workspace**: Features an integrated code input panel with line numbering, language selector dropdown, clear controls, and demo code loading.
+* **Synchronized Scroll Gutter**: Code editor textarea and line-number gutter scroll together seamlessly in vertical sync.
+* **Custom Dropdown Selector**: Custom state-driven React select component for selecting languages, replacing native browser dropdown elements.
 * **Unified Security Scorecard**: Visualizes security score (0–100) using an animated circular gauge colored dynamically by risk level.
+* **Dynamic API Status Monitor**: Real-time status badge (`OPERATIONAL`, `CONNECTING...`, `OFFLINE`) displaying connection health to the backend service.
+* **Skeleton Loading Experience**: Animated skeleton screens mapping to the audit reports layout while an active code scan runs.
 * **Remediation & Code Fixes**: Displays detailed vulnerability cards mapping to CWE classes, featuring "Why it's risky" impact sections and collapsible/copyable secure code remediations.
-* **Sleek Dark Terminal Theme**: Custom dark theme (`#0d1117`) built with React, TypeScript, and Tailwind CSS.
+* **Premium Dark Theme**: Custom dark slate/indigo theme (`#090d16` background, `#111625` cards, `#1f293d` borders) built with React, TypeScript, and Tailwind CSS.
 
 ---
 
@@ -34,13 +38,13 @@ security-scanner/
 │   └── .env               # Local configuration environment file
 └── frontend/
     ├── src/
-    │   ├── App.tsx        # Main application component
-    │   ├── index.css      # Core styles & Tailwind imports
+    │   ├── App.tsx        # Main application layout & status polling
+    │   ├── index.css      # Core styles & custom animations
     │   ├── api/
     │   │   └── scanner.ts # API request handler
     │   └── components/
-    │       ├── CodeEditor.tsx   # Left-hand code editor component
-    │       ├── ScanResults.tsx  # Right-hand score & summary dashboard
+    │       ├── CodeEditor.tsx   # Code editor panel with scroll sync & custom select
+    │       ├── ScanResults.tsx  # Scorecard dashboard, empty state & skeleton loader
     │       └── VulnCard.tsx     # Expandable security card component
     ├── package.json       # Node package manager configuration
     ├── vite.config.ts     # Vite builder setup
@@ -49,12 +53,10 @@ security-scanner/
 
 ---
 
-## ⚙️ Installation & Setup
+## ⚙️ Installation & Local Setup
 
 ### Prerequisite
 Ensure you have **Python 3.10+** and **Node.js 18+** installed.
-
----
 
 ### 1. Backend Setup
 
@@ -78,8 +80,6 @@ Ensure you have **Python 3.10+** and **Node.js 18+** installed.
    ```
    *The backend will be running at `http://localhost:8000`.*
 
----
-
 ### 2. Frontend Setup
 
 1. Open a new terminal and navigate to the frontend directory:
@@ -98,10 +98,30 @@ Ensure you have **Python 3.10+** and **Node.js 18+** installed.
 
 ---
 
+## ☁️ Production Deployment
+
+When deploying to hosting environments like **Vercel** (frontend) and **Render** (backend), use the following configuration settings:
+
+### 1. Backend Settings (Render)
+* **Root Directory:** `security-scanner/backend`
+* **Build Command:** `pip install -r requirements.txt`
+* **Start Command:** `uvicorn main:app --host 0.0.0.0 --port $PORT`
+* **Environment Variables:**
+  * `GEMINI_API_KEY`: Your live Google Gemini API key.
+
+### 2. Frontend Settings (Vercel)
+* **Framework Preset:** `Vite` (Auto-detected)
+* **Root Directory:** `security-scanner/frontend`
+* **Build Command:** `npm run build`
+* **Output Directory:** `dist`
+* **Environment Variables:**
+  * `VITE_API_URL`: Your live Render backend URL (e.g., `https://codescanner-wb82.onrender.com` — *no trailing slash*).
+
+---
+
 ## 🧪 How to Test the Scanner
 
-1. Launch both the backend (`port 8000`) and frontend (`port 5173`) servers.
-2. Open your browser to `http://localhost:5173`.
-3. Click the **"Load Demo"** button on the editor top bar to pre-populate an intentionally vulnerable Python script containing SQL Injection, Hardcoded Secrets, Command Injection, and Weak Cryptography.
-4. Click **"Scan Code"**.
-5. View the security scorecard results, expandable vulnerability findings, and copy secure code remediations directly from the browser!
+1. Launch both the backend and frontend servers (or open the live production URL).
+2. Click the **"Load Demo"** button on the editor top bar to pre-populate an intentionally vulnerable Python script containing SQL Injection, Hardcoded Secrets, Command Injection, and Weak Cryptography.
+3. Click **"Scan Code"**.
+4. View the security scorecard results, expandable vulnerability findings, and copy secure code remediations directly from the browser!
