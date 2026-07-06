@@ -1,6 +1,6 @@
 # 🛡️ AI Security Scanner
 
-A production-ready full-stack security vulnerability scanner where developers paste source code and receive instant AI-powered security audits. The scanner identifies vulnerabilities, estimates risk scores, categorizes issues by severity and CWE, explains the underlying exploits, and provides secure code corrections.
+A production-ready full-stack security vulnerability scanner where developers paste or upload source code and receive instant AI-powered security audits. The scanner identifies vulnerabilities, estimates risk scores, categorizes issues by severity and CWE, explains the underlying exploits, and provides secure code corrections.
 
 ---
 
@@ -8,6 +8,9 @@ A production-ready full-stack security vulnerability scanner where developers pa
 
 * **AI-Powered & Fallback Static Analysis**: Automatically leverages Google Gemini API for deep security auditing. If the API key is not configured, the system gracefully falls back to a rules-based static analyzer so it works out of the box!
 * **Interactive Code Workspace**: Features an integrated code input panel with line numbering, language selector dropdown, clear controls, and demo code loading.
+* **Drag-and-Drop File Import**: Drag and drop any source code file directly into the workspace to immediately import its content, complete with a 1 MB file size safety guardrail.
+* **Automatic Language Mapping**: Auto-detects the programming language based on the imported file's extension (e.g., `.py` ➔ Python, `.java` ➔ Java, `.sql` ➔ SQL).
+* **Manual File Selector Option**: Provides a clean upload toolbar button that launches the native OS file explorer dialog.
 * **Synchronized Scroll Gutter**: Code editor textarea and line-number gutter scroll together seamlessly in vertical sync.
 * **Custom Dropdown Selector**: Custom state-driven React select component for selecting languages, replacing native browser dropdown elements.
 * **Unified Security Scorecard**: Visualizes security score (0–100) using an animated circular gauge colored dynamically by risk level.
@@ -43,7 +46,7 @@ security-scanner/
     │   ├── api/
     │   │   └── scanner.ts # API request handler
     │   └── components/
-    │       ├── CodeEditor.tsx   # Code editor panel with scroll sync & custom select
+    │       ├── CodeEditor.tsx   # Code editor panel with drag-and-drop & custom select
     │       ├── ScanResults.tsx  # Scorecard dashboard, empty state & skeleton loader
     │       └── VulnCard.tsx     # Expandable security card component
     ├── package.json       # Node package manager configuration
