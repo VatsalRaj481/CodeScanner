@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Play, RotateCcw, Trash2, Code2, ShieldAlert, ChevronDown } from 'lucide-react';
+import { Play, RotateCcw, Trash2, Code2, ShieldAlert, ChevronDown, Upload } from 'lucide-react';
 
 interface CodeEditorProps {
   code: string;
@@ -23,6 +23,23 @@ const LANGUAGES = [
   { id: 'bash', label: 'Bash' },
 ];
 
+const extensionToLanguageMap: Record<string, string> = {
+  py: 'python',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  ts: 'typescript',
+  tsx: 'typescript',
+  jsx: 'typescript',
+  php: 'php',
+  java: 'java',
+  go: 'go',
+  sql: 'sql',
+  sh: 'bash',
+  bash: 'bash',
+  zsh: 'bash',
+};
+
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   code,
   setCode,
@@ -35,7 +52,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragError, setDragError] = useState<string | null>(null);
 
   const lineCount = Math.max(1, code.split('\n').length);
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
@@ -58,10 +79,113 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Clear drag error after 4 seconds
+  useEffect(() => {
+    if (dragError) {
+      const timer = setTimeout(() => setDragError(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [dragError]);
+
+  const handleFileImport = (file: File) => {
+    setDragError(null);
+    
+    // Size check (1 MB limit)
+    const MAX_SIZE = 1 * 1024 * 1024; // 1 MB
+    if (file.size > MAX_SIZE) {
+      setDragError('File is too large. Max size is 1 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === 'string') {
+        setCode(text);
+        
+        // Auto-detect language
+        const extension = file.name.split('.').pop()?.toLowerCase();
+        if (extension && extensionToLanguageMap[extension]) {
+          setLanguage(extensionToLanguageMap[extension]);
+        } else {
+          setLanguage('auto');
+        }
+      }
+    };
+    reader.onerror = () => {
+      setDragError('Failed to read file.');
+    };
+    reader.readAsText(file);
+  };
+
+  // Drag and Drop Event Interceptors
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      handleFileImport(file);
+    }
+  };
+
   const selectedLang = LANGUAGES.find((lang) => lang.id === language) || LANGUAGES[0];
 
   return (
-    <div className="flex flex-col h-full bg-[#111625] border border-[#1f293d] rounded-xl overflow-hidden shadow-sm">
+    <div
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="flex flex-col h-full bg-[#111625] border border-[#1f293d] rounded-xl overflow-hidden shadow-sm relative"
+    >
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            handleFileImport(e.target.files[0]);
+          }
+        }}
+        className="hidden"
+        accept=".py,.js,.jsx,.ts,.tsx,.php,.java,.go,.sql,.sh,.bash"
+      />
+
+      {/* Drag Over Overlay */}
+      {isDragging && (
+        <div className="absolute inset-0 bg-[#090d16]/95 border-2 border-dashed border-indigo-500/50 rounded-xl z-30 flex flex-col items-center justify-center space-y-3 pointer-events-none">
+          <Upload className="w-10 h-10 text-indigo-400 animate-bounce" />
+          <p className="text-sm font-medium text-gray-200">Drop code file to import</p>
+          <p className="text-xs text-gray-400">Supported: .py, .js, .ts, .java, .go, .sql, .sh</p>
+        </div>
+      )}
+
       {/* Editor Header Bar */}
       <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-[#090d16] border-b border-[#1f293d] gap-2">
         <div className="flex items-center space-x-2">
@@ -115,6 +239,15 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </button>
 
           <button
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+            title="Upload code file"
+            className="flex items-center space-x-1 text-xs text-gray-400 hover:text-indigo-400 bg-[#111625] hover:bg-indigo-950/20 border border-[#1f293d] hover:border-indigo-900/40 rounded-lg p-1.5 transition-all"
+          >
+            <Upload className="w-3.5 h-3.5" />
+          </button>
+
+          <button
             onClick={() => setCode('')}
             type="button"
             title="Clear editor"
@@ -145,7 +278,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           value={code}
           onChange={(e) => setCode(e.target.value)}
           onScroll={handleScroll}
-          placeholder="// Paste source code here to analyze security vulnerabilities..."
+          placeholder="// Paste or drag-and-drop a source code file here to scan for vulnerabilities..."
           spellCheck={false}
           className="w-full h-full p-4 bg-transparent text-gray-200 resize-none focus:outline-none leading-6 font-mono selection:bg-indigo-950/60 overflow-auto"
         />
@@ -153,9 +286,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
       {/* Editor Footer Action Bar */}
       <div className="p-4 bg-[#111625] border-t border-[#1f293d] flex items-center justify-between">
-        <div className="flex items-center text-xs text-gray-400 space-x-2">
-          <ShieldAlert className="w-4 h-4 text-amber-500" />
-          <span>Ready to perform static & AI security checks</span>
+        <div className="flex items-center text-xs space-x-2">
+          {dragError ? (
+            <>
+              <ShieldAlert className="w-4 h-4 text-red-500" />
+              <span className="text-red-400 font-medium">{dragError}</span>
+            </>
+          ) : (
+            <>
+              <ShieldAlert className="w-4 h-4 text-amber-500" />
+              <span className="text-gray-400">Ready to perform static & AI security checks</span>
+            </>
+          )}
         </div>
 
         <button
