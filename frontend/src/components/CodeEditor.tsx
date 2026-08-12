@@ -89,9 +89,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const handleFileImport = (file: File) => {
     setDragError(null);
-    
-    // Size check (1 MB limit)
-    const MAX_SIZE = 1 * 1024 * 1024; // 1 MB
+
+    const MAX_SIZE = 1 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       setDragError('File is too large. Max size is 1 MB.');
       return;
@@ -102,8 +101,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       const text = e.target?.result;
       if (typeof text === 'string') {
         setCode(text);
-        
-        // Auto-detect language
         const extension = file.name.split('.').pop()?.toLowerCase();
         if (extension && extensionToLanguageMap[extension]) {
           setLanguage(extensionToLanguageMap[extension]);
@@ -112,46 +109,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         }
       }
     };
-    reader.onerror = () => {
-      setDragError('Failed to read file.');
-    };
+    reader.onerror = () => setDragError('Failed to read file.');
     reader.readAsText(file);
   };
 
-  // Drag and Drop Event Interceptors
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  };
-
+  const handleDragOver  = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); };
+  const handleDragEnter = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); };
   const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+    e.preventDefault(); e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+    if (e.clientX < rect.left || e.clientX >= rect.right || e.clientY < rect.top || e.clientY >= rect.bottom) {
       setIsDragging(false);
     }
   };
-
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      handleFileImport(file);
-    }
+    e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleFileImport(e.dataTransfer.files[0]);
   };
 
   const selectedLang = LANGUAGES.find((lang) => lang.id === language) || LANGUAGES[0];
@@ -162,63 +135,75 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className="flex flex-col h-full bg-[#111625] border border-[#1f293d] rounded-xl overflow-hidden shadow-sm relative"
+      className="flex flex-col h-full bg-[#111625]/80 border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/40 relative"
     >
       {/* Hidden File Input */}
       <input
         type="file"
         ref={fileInputRef}
         onChange={(e) => {
-          if (e.target.files && e.target.files.length > 0) {
-            handleFileImport(e.target.files[0]);
-          }
+          if (e.target.files && e.target.files.length > 0) handleFileImport(e.target.files[0]);
         }}
         className="hidden"
         accept=".py,.js,.jsx,.ts,.tsx,.php,.java,.go,.sql,.sh,.bash"
       />
 
-      {/* Drag Over Overlay */}
+      {/* ── Drag-over overlay — materialize in (Apple §12) ── */}
       {isDragging && (
-        <div className="absolute inset-0 bg-[#090d16]/95 border-2 border-dashed border-indigo-500/50 rounded-xl z-30 flex flex-col items-center justify-center space-y-3 pointer-events-none">
-          <Upload className="w-10 h-10 text-indigo-400 animate-bounce" />
-          <p className="text-sm font-medium text-gray-200">Drop code file to import</p>
-          <p className="text-xs text-gray-400">Supported: .py, .js, .ts, .java, .go, .sql, .sh</p>
+        <div className="absolute inset-0 z-30 pointer-events-none animate-glass-in rounded-2xl overflow-hidden">
+          <div
+            className="absolute inset-0 flex flex-col items-center justify-center space-y-3"
+            style={{
+              background: 'rgba(9, 13, 22, 0.88)',
+              backdropFilter: 'blur(16px) saturate(160%)',
+              border: '1.5px dashed rgba(99, 102, 241, 0.5)',
+              borderRadius: 'inherit',
+            }}
+          >
+            <Upload className="w-10 h-10 text-indigo-400" style={{ filter: 'drop-shadow(0 0 8px rgba(99,102,241,0.5))' }} />
+            <p className="text-sm font-medium text-gray-200" style={{ letterSpacing: '-0.01em' }}>Drop code file to import</p>
+            <p className="text-xs text-gray-500" style={{ letterSpacing: '0.01em' }}>Supported: .py, .js, .ts, .java, .go, .sql, .sh</p>
+          </div>
         </div>
       )}
 
-      {/* Editor Header Bar */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-3 bg-[#090d16] border-b border-[#1f293d] gap-2">
+      {/* ── Editor Header Bar — glass panel (Apple §12) ── */}
+      <div className="flex flex-wrap items-center justify-between px-4 py-3 glass-panel border-b border-white/[0.06] gap-2">
         <div className="flex items-center space-x-2">
           <Code2 className="w-4 h-4 text-indigo-400" />
-          <span className="text-xs font-semibold text-gray-300 tracking-wide uppercase">Source Code Input</span>
+          <span className="text-xs font-semibold text-gray-400 uppercase" style={{ letterSpacing: '0.06em' }}>
+            Source Code Input
+          </span>
         </div>
 
         <div className="flex items-center space-x-2.5">
-          {/* Custom Select Dropdown */}
+          {/* Language Dropdown */}
           <div className="relative" ref={dropdownRef}>
+            {/* Apple §1: respond on pointer-down */}
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               type="button"
-              className="flex items-center justify-between space-x-1.5 bg-[#111625] text-xs text-gray-200 border border-[#1f293d] rounded-lg px-3 py-1.5 hover:bg-[#1f293d]/50 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer font-mono"
+              className="flex items-center justify-between space-x-1.5 bg-white/[0.05] text-xs text-gray-300 border border-white/[0.08] rounded-lg px-3 py-1.5 hover:bg-white/[0.08] focus:outline-none focus:border-indigo-500/60 transition-all duration-150 active:scale-[0.96] cursor-pointer font-mono"
             >
               <span>{selectedLang.label}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+              <ChevronDown
+                className="w-3.5 h-3.5 text-gray-500 transition-transform duration-200"
+                style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
             </button>
 
+            {/* Spring dropdown entrance (Apple §4) */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-1 w-40 bg-[#111625] border border-[#1f293d] rounded-lg shadow-xl z-50 overflow-hidden py-1">
+              <div className="absolute right-0 mt-1.5 w-40 bg-[#111625] border border-white/[0.09] rounded-xl shadow-2xl shadow-black/60 z-50 overflow-hidden py-1 animate-dropdown">
                 {LANGUAGES.map((lang) => (
                   <button
                     key={lang.id}
                     type="button"
-                    onClick={() => {
-                      setLanguage(lang.id);
-                      setIsDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-colors ${
+                    onClick={() => { setLanguage(lang.id); setIsDropdownOpen(false); }}
+                    className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-all duration-100 active:scale-[0.98] ${
                       lang.id === language
-                        ? 'bg-indigo-600 text-white'
-                        : 'text-gray-300 hover:bg-[#1f293d]'
+                        ? 'bg-indigo-600/80 text-white'
+                        : 'text-gray-300 hover:bg-white/[0.06]'
                     }`}
                   >
                     {lang.label}
@@ -228,47 +213,48 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             )}
           </div>
 
+          {/* Load Demo button — Apple §1 pointer-down */}
           <button
             onClick={onLoadDemo}
             type="button"
             title="Reload intentionally vulnerable demo snippet"
-            className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-900/40 rounded-lg px-3 py-1.5 transition-all"
+            className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 hover:bg-indigo-950/60 border border-indigo-900/40 rounded-lg px-3 py-1.5 transition-all duration-150 active:scale-[0.95]"
           >
             <RotateCcw className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Load Demo</span>
           </button>
 
+          {/* Upload button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             type="button"
             title="Upload code file"
-            className="flex items-center space-x-1 text-xs text-gray-400 hover:text-indigo-400 bg-[#111625] hover:bg-indigo-950/20 border border-[#1f293d] hover:border-indigo-900/40 rounded-lg p-1.5 transition-all"
+            className="flex items-center text-xs text-gray-400 hover:text-indigo-400 bg-white/[0.04] hover:bg-indigo-950/30 border border-white/[0.07] hover:border-indigo-900/40 rounded-lg p-1.5 transition-all duration-150 active:scale-[0.90]"
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
 
+          {/* Clear button */}
           <button
             onClick={() => setCode('')}
             type="button"
             title="Clear editor"
-            className="flex items-center space-x-1 text-xs text-gray-400 hover:text-red-400 bg-[#111625] hover:bg-red-950/30 border border-[#1f293d] hover:border-red-900/40 rounded-lg p-1.5 transition-all"
+            className="flex items-center text-xs text-gray-400 hover:text-red-400 bg-white/[0.04] hover:bg-red-950/30 border border-white/[0.07] hover:border-red-900/40 rounded-lg p-1.5 transition-all duration-150 active:scale-[0.90]"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Editor Body */}
-      <div className="relative flex-1 flex bg-[#090d16]/40 font-mono text-sm overflow-hidden">
+      {/* ── Editor Body ── */}
+      <div className="relative flex-1 flex bg-[#090d16]/60 font-mono text-sm overflow-hidden">
         {/* Line Numbers Gutter */}
         <div
           ref={lineNumbersRef}
-          className="py-4 select-none bg-[#090d16] border-r border-[#1f293d]/50 text-right pr-3 pl-2 text-gray-600 font-mono text-xs w-12 shrink-0 overflow-hidden"
+          className="py-4 select-none bg-transparent border-r border-white/[0.05] text-right pr-3 pl-2 text-gray-700 font-mono text-xs w-12 shrink-0 overflow-hidden"
         >
           {lineNumbers.map((num) => (
-            <div key={num} className="leading-6">
-              {num}
-            </div>
+            <div key={num} className="leading-6">{num}</div>
           ))}
         </div>
 
@@ -284,37 +270,40 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         />
       </div>
 
-      {/* Editor Footer Action Bar */}
-      <div className="p-4 bg-[#111625] border-t border-[#1f293d] flex items-center justify-between">
+      {/* ── Editor Footer Action Bar ── */}
+      <div className="px-4 py-3 glass-panel border-t border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center text-xs space-x-2">
           {dragError ? (
             <>
-              <ShieldAlert className="w-4 h-4 text-red-500" />
+              <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
               <span className="text-red-400 font-medium">{dragError}</span>
             </>
           ) : (
             <>
-              <ShieldAlert className="w-4 h-4 text-amber-500" />
-              <span className="text-gray-400">Ready to perform static & AI security checks</span>
+              <ShieldAlert className="w-4 h-4 text-amber-500/80 shrink-0" />
+              <span className="text-gray-500" style={{ letterSpacing: '0.01em' }}>
+                Ready to perform static &amp; AI security checks
+              </span>
             </>
           )}
         </div>
 
+        {/* Primary Scan Button — Apple §1 instant pointer-down scale */}
         <button
           onClick={onScan}
           type="button"
           disabled={isLoading || !code.trim()}
-          className={`flex items-center space-x-2 px-5 py-2 rounded-lg font-medium text-sm transition-all duration-150 ${
+          className={`flex items-center space-x-2 px-5 py-2 rounded-xl font-semibold text-sm transition-all duration-150 ${
             isLoading || !code.trim()
-              ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50'
-              : 'bg-indigo-600 hover:bg-indigo-500 text-white active:scale-98 shadow-sm'
+              ? 'bg-gray-800/60 text-gray-600 cursor-not-allowed border border-white/[0.05]'
+              : 'bg-gradient-to-br from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 active:scale-[0.97]'
           }`}
         >
           {isLoading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg className="animate-spin -ml-1 mr-1 h-4 w-4 text-white/70" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
               <span>Analyzing...</span>
             </>

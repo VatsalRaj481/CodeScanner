@@ -44,7 +44,6 @@ export const App: React.FC = () => {
       }
     };
     checkStatus();
-    // Re-check status every 15 seconds
     const interval = setInterval(checkStatus, 15000);
     return () => clearInterval(interval);
   }, []);
@@ -71,33 +70,40 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#090d16] text-gray-100 flex flex-col selection:bg-indigo-950/60">
-      {/* Top Header Navigation */}
-      <header className="border-b border-[#1f293d] bg-[#111625]/90 backdrop-blur sticky top-0 z-50">
+      {/* ── Top Header Navigation — glass material (Apple §12) ── */}
+      <header className="glass border-b border-white/[0.06] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <svg className="w-5.5 h-5.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            {/* Shield logo */}
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-900/40">
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 <path d="M9 11l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-sm font-semibold text-gray-100 tracking-tight">AI Security Scanner</h1>
-                <span className="text-[10px] font-mono font-medium text-gray-400 border border-[#1f293d] bg-[#0d1117] px-1.5 py-0.5 rounded">
+                {/* Apple §15: tight tracking on heading-weight text */}
+                <h1 className="text-sm font-semibold text-gray-100" style={{ letterSpacing: '-0.015em' }}>
+                  AI Security Scanner
+                </h1>
+                <span className="text-[10px] font-mono font-medium text-gray-500 border border-white/[0.07] bg-white/[0.04] px-1.5 py-0.5 rounded">
                   v1.0.0
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400">Automated static code security and vulnerability auditing</p>
+              <p className="text-[11px] text-gray-500" style={{ letterSpacing: '0.01em' }}>
+                Automated static code security and vulnerability auditing
+              </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Apple §1: respond on pointer-down with active:scale */}
             <a
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/30 hover:bg-indigo-950/50 border border-indigo-900/40 px-3.5 py-1.5 rounded-lg transition-all"
+              className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 hover:bg-indigo-950/60 border border-indigo-900/40 px-3.5 py-1.5 rounded-lg transition-all duration-150 active:scale-[0.96]"
             >
               <span>Get Gemini API Key</span>
               <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
@@ -106,7 +112,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Main Application Container */}
+      {/* ── Main Application Container ── */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           {/* Left Editor Panel */}
@@ -129,25 +135,26 @@ export const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-[#1f293d] bg-[#111625] py-4 mt-8">
+      {/* ── Footer — glass material (Apple §12) ── */}
+      <footer className="glass border-t border-white/[0.06] py-4 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <Terminal className="w-4 h-4 text-gray-400" />
-            <span>AI Security Scanner — Production Ready Static & Dynamic Analysis</span>
+            <Terminal className="w-3.5 h-3.5 text-gray-500" />
+            <span style={{ letterSpacing: '0.01em' }}>AI Security Scanner — Production Ready Static &amp; Dynamic Analysis</span>
           </div>
-          <div className="flex items-center space-x-2 bg-[#0d1117] px-3 py-1.5 rounded-lg border border-[#1f293d] select-none">
-            <span className={`w-2 h-2 rounded-full ${
-              backendStatus === 'online' ? 'bg-green-400 animate-pulse-slow' :
-              backendStatus === 'checking' ? 'bg-amber-400 animate-pulse' :
-              'bg-red-500'
-            }`} />
-            <span className="text-gray-400 font-medium font-mono text-[11px] tracking-wide">
-              API STATUS: {
-                backendStatus === 'online' ? 'OPERATIONAL' :
-                backendStatus === 'checking' ? 'CONNECTING...' :
-                'OFFLINE'
-              }
+          <div className="flex items-center space-x-2 bg-white/[0.03] px-3 py-1.5 rounded-lg border border-white/[0.06] select-none">
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                backendStatus === 'online'   ? 'bg-green-400 animate-pulse-slow' :
+                backendStatus === 'checking' ? 'bg-amber-400 animate-pulse-subtle' :
+                'bg-red-500'
+              }`}
+            />
+            <span className="text-gray-500 font-medium font-mono text-[11px]" style={{ letterSpacing: '0.06em' }}>
+              API STATUS:{' '}
+              {backendStatus === 'online'   ? 'OPERATIONAL' :
+               backendStatus === 'checking' ? 'CONNECTING...' :
+               'OFFLINE'}
             </span>
           </div>
         </div>
