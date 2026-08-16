@@ -59,17 +59,29 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const currentScoreRef = useRef<number>(0);
+  const animFrameRef = useRef<number | null>(null);
+
   // Critically damped spring physics loop for Risk Score ring animation (Apple §4)
   useEffect(() => {
+    // Cancel any existing animation frame
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+
     if (!results) {
+      currentScoreRef.current = 0;
       setAnimatedScore(0);
       return;
     }
 
-    const target = results.score;
-    let current = animatedScore;
+    // Explicitly sanitize and clamp target score to numeric [0, 100]
+    const rawTarget = Number(results.score);
+    const target = isNaN(rawTarget) ? 0 : Math.min(100, Math.max(0, Math.round(rawTarget)));
+    
+    let current = currentScoreRef.current;
     let velocity = 0;
-    let animationFrameId: number;
     let lastTime = performance.now();
 
     const response = 0.4;
@@ -78,7 +90,9 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     const c = 2 * omega;
 
     const step = (now: number) => {
-      const dt = Math.min((now - lastTime) / 1000, 0.064);
+      // Ensure dt is a valid positive number
+      const delta = typeof now === 'number' && !isNaN(now) ? now - lastTime : 16.6;
+      const dt = Math.min(Math.max(delta / 1000, 0.001), 0.064);
       lastTime = now;
 
       const x = current - target;
@@ -86,18 +100,28 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
       velocity += accel * dt;
       current += velocity * dt;
 
-      const rounded = Math.round(current);
+      // Defensive clamping to strictly integer 0-100 range
+      const clampedVal = Math.min(100, Math.max(0, Math.round(current)));
+      currentScoreRef.current = current;
 
       if (Math.abs(current - target) < 0.5 && Math.abs(velocity) < 0.5) {
+        currentScoreRef.current = target;
         setAnimatedScore(target);
+        animFrameRef.current = null;
       } else {
-        setAnimatedScore((prev) => (prev !== rounded ? rounded : prev));
-        animationFrameId = requestAnimationFrame(step);
+        setAnimatedScore((prev) => (prev !== clampedVal ? clampedVal : prev));
+        animFrameRef.current = requestAnimationFrame(step);
       }
     };
 
-    animationFrameId = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animationFrameId);
+    animFrameRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
   }, [results?.score]);
 
   // Toggle multi-select severity filter
@@ -450,7 +474,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
                 <span className={`text-2xl font-bold font-mono ${scoreTheme.text}`} style={{ letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {Math.round(animatedScore)}
+                  {Math.min(100, Math.max(0, Math.round(Number(animatedScore) || 0)))}
                 </span>
                 <span className="type-caption text-slate-500 font-semibold uppercase mt-1">
                   Score
