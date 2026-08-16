@@ -1,0 +1,50 @@
+name: AI Security Scanner CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  security-audit:
+    name: Security Scan PR Diff
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Get Changed Files in PR
+        id: changed-files
+        run: |
+          # Compare PR head commit with target base branch
+          FILES=$(git diff --name-only origin/${{ github.base_ref }} ${{ github.sha }} | tr '\n' ' ')
+          echo "files=$FILES" >> $GITHUB_OUTPUT
+          echo "Changed files: $FILES"
+
+      - name: Run AI Security Audit
+        id: scan
+        env:
+          SCANNER_API_URL: ${{ secrets.SCANNER_API_URL }}
+          SCANNER_API_KEY: ${{ secrets.SCANNER_API_KEY }}
+          SEVERITY_THRESHOLD: 'HIGH'
+          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+        run: |
+          python scripts/ci_scan.py
+
+      - name: Post PR Security Audit Comment
+        if: always() && hashFiles('pr_comment.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ai-security-scanner-report
+          path: pr_comment.md
