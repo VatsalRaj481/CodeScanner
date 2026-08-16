@@ -60,13 +60,13 @@ def read_root():
 
 @app.post("/api/scan", response_model=ScanResponse)
 @limiter.limit(f"{rate_limit}/minute")
-def scan_code(req: Request, request: ScanRequest):
-    if not request.code or not request.code.strip():
+def scan_code(request: Request, scan_req: ScanRequest):
+    if not scan_req.code or not scan_req.code.strip():
         raise HTTPException(status_code=400, detail="Source code cannot be empty.")
     
     start_time = time.time()
     try:
-        result, engine, cached = analyze_code(request.code, request.language)
+        result, engine, cached = analyze_code(scan_req.code, scan_req.language)
         duration_ms = (time.time() - start_time) * 1000
         finding_count = len(result.vulnerabilities) if result.vulnerabilities else 0
         log_scan_event("single_scan", duration_ms, engine, finding_count, cached)
@@ -76,13 +76,13 @@ def scan_code(req: Request, request: ScanRequest):
 
 @app.post("/api/scan-batch", response_model=ScanResponse)
 @limiter.limit(f"{rate_limit}/minute")
-def scan_batch(req: Request, request: BatchScanRequest):
-    if not request.files:
+def scan_batch(request: Request, batch_req: BatchScanRequest):
+    if not batch_req.files:
         raise HTTPException(status_code=400, detail="File list cannot be empty.")
     
     start_time = time.time()
     try:
-        result, engine, cached = analyze_batch(request.files)
+        result, engine, cached = analyze_batch(batch_req.files)
         duration_ms = (time.time() - start_time) * 1000
         finding_count = len(result.vulnerabilities) if result.vulnerabilities else 0
         log_scan_event("batch_scan", duration_ms, engine, finding_count, cached)
