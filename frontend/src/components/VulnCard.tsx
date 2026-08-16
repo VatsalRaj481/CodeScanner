@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import ReactDiffViewer from 'react-diff-viewer-continued';
 import { Vulnerability } from '../api/scanner';
-import { AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, Copy, ShieldCheck, Tag, FileCode } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, Copy, ShieldCheck, Tag, FileCode, Columns, Rows } from 'lucide-react';
 
 interface VulnCardProps {
   vulnerability: Vulnerability;
@@ -9,6 +10,7 @@ interface VulnCardProps {
 export const VulnCard: React.FC<VulnCardProps> = ({ vulnerability }) => {
   const [isFixExpanded, setIsFixExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [isSplitView, setIsSplitView] = useState(true);
 
   const getSeverityBadge = (severity: string) => {
     switch (severity.toLowerCase()) {
@@ -29,6 +31,42 @@ export const VulnCard: React.FC<VulnCardProps> = ({ vulnerability }) => {
     navigator.clipboard.writeText(vulnerability.fix_code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Construct vulnerable snippet representation for diff comparison
+  const getOldCode = () => {
+    const linesStr = vulnerability.line_numbers && vulnerability.line_numbers.length > 0 
+      ? `Line ${vulnerability.line_numbers.join(', ')}` 
+      : 'Vulnerable Code';
+    return `# [${linesStr}] ${vulnerability.title}\n# Category: ${vulnerability.category}\n# Issue: ${vulnerability.description}`;
+  };
+
+  // Custom dark theme matching app's design system
+  const customDiffStyles = {
+    variables: {
+      dark: {
+        diffViewerBackground: '#080B12',
+        diffViewerColor: '#cbd5e1',
+        addedBackground: '#064e3b25',
+        addedColor: '#34d399',
+        removedBackground: '#88133725',
+        removedColor: '#f87171',
+        wordAddedBackground: '#04785744',
+        wordRemovedBackground: '#9f123944',
+        addedGutterBackground: '#064e3b33',
+        removedGutterBackground: '#88133733',
+        gutterBackground: '#0A0E17',
+        gutterColor: '#475569',
+        gutterBackgroundDark: '#0A0E17',
+        highlightBackground: '#1e293b',
+        highlightGutterBackground: '#1e293b',
+      },
+    },
+    line: {
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '12px',
+      lineHeight: '1.5',
+    },
   };
 
   return (
@@ -83,55 +121,82 @@ export const VulnCard: React.FC<VulnCardProps> = ({ vulnerability }) => {
         </div>
       </div>
 
-      {/* Collapsible Remediation Fix */}
+      {/* Collapsible Remediation Fix with Side-by-Side Diff */}
       <div className="border border-slate-800/80 rounded-xl overflow-hidden bg-slate-900/50">
-        <button
-          onClick={() => setIsFixExpanded(!isFixExpanded)}
-          type="button"
-          className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/80 hover:bg-slate-800/60 text-xs font-semibold text-slate-200 border-b border-slate-800/60 transition-all btn-press"
-        >
-          <div className="flex items-center space-x-2">
+        <div className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-slate-800/60 transition-all">
+          <button
+            onClick={() => setIsFixExpanded(!isFixExpanded)}
+            type="button"
+            className="flex items-center space-x-2 text-xs font-semibold text-slate-200 hover:text-white cursor-pointer btn-press"
+          >
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Recommended Contextual Fix</span>
-          </div>
-          {isFixExpanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-        </button>
+            <span>Before / After Code Diff</span>
+          </button>
 
-        <div 
-          className={`transition-all duration-300 ease-out overflow-hidden ${
-            isFixExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-          }`}
-          style={{ transitionTimingFunction: 'cubic-bezier(0.34, 1.20, 0.64, 1)' }}
-        >
-          <div className="p-4 space-y-3 bg-[#0A0E17]/60 border-t border-slate-800/40">
-            <p className="type-body text-slate-400">{vulnerability.fix_explanation}</p>
-            
-            <div className="relative group">
-              <pre className="p-3.5 bg-[#080B12] border border-slate-800/80 rounded-xl text-xs font-mono text-emerald-400 overflow-x-auto leading-5 shadow-inner">
-                <code>{vulnerability.fix_code}</code>
-              </pre>
-              
+          <div className="flex items-center space-x-2">
+            {/* View Mode Toggle (Split vs Unified) */}
+            {isFixExpanded && (
               <button
-                onClick={copyFixCode}
+                onClick={() => setIsSplitView(!isSplitView)}
                 type="button"
-                title="Copy secure code fix"
-                className="absolute top-2.5 right-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 p-1.5 rounded-lg border border-slate-700 transition-all opacity-90 hover:opacity-100 flex items-center gap-1 text-[10px] btn-press cursor-pointer"
+                title={isSplitView ? "Switch to unified inline diff view" : "Switch to side-by-side split diff view"}
+                className="flex items-center space-x-1 text-[10px] font-mono text-slate-400 hover:text-slate-200 bg-slate-800/80 hover:bg-slate-700/80 px-2 py-1 rounded-md border border-slate-700/60 transition-all btn-press cursor-pointer"
               >
-                {copied ? (
-                  <span className="flex items-center gap-1 text-emerald-400 animate-materialize">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span className="font-semibold">Copied!</span>
-                  </span>
-                ) : (
-                  <>
-                    <Copy className="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-200 transition-colors" />
-                    <span className="font-medium">Copy</span>
-                  </>
-                )}
+                {isSplitView ? <Columns className="w-3 h-3 text-slate-400" /> : <Rows className="w-3 h-3 text-slate-400" />}
+                <span>{isSplitView ? 'Side-by-Side' : 'Unified'}</span>
               </button>
-            </div>
+            )}
+
+            {/* Copy Fix Code Button */}
+            <button
+              onClick={copyFixCode}
+              type="button"
+              title="Copy recommended secure code fix"
+              className="flex items-center space-x-1 text-[10px] font-mono text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 px-2 py-1 rounded-md border border-slate-700/60 transition-all btn-press cursor-pointer"
+            >
+              {copied ? (
+                <span className="flex items-center gap-1 text-emerald-400 animate-materialize">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="font-semibold">Copied!</span>
+                </span>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-medium">Copy Fix</span>
+                </>
+              )}
+            </button>
+
+            {/* Expand / Collapse Chevron */}
+            <button
+              onClick={() => setIsFixExpanded(!isFixExpanded)}
+              type="button"
+              className="text-slate-400 hover:text-slate-200 p-1 cursor-pointer"
+            >
+              {isFixExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
           </div>
         </div>
+
+        {/* Collapsible Diff Container */}
+        {isFixExpanded && (
+          <div className="p-4 space-y-3 bg-[#0A0E17]/80 border-t border-slate-800/40 animate-fade-up">
+            <p className="type-body text-slate-400">{vulnerability.fix_explanation}</p>
+
+            {/* Diff Viewer */}
+            <div className="rounded-xl overflow-hidden border border-slate-800/80 shadow-inner font-mono text-xs">
+              <ReactDiffViewer
+                oldValue={getOldCode()}
+                newValue={vulnerability.fix_code}
+                splitView={isSplitView}
+                useDarkTheme={true}
+                styles={customDiffStyles}
+                leftTitle="Vulnerable Snippet / Issue"
+                rightTitle="Recommended Secure Fix"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
