@@ -17,6 +17,8 @@ class Vulnerability(BaseModel):
     fix_explanation: str = Field(..., description="Explanation of how the fix resolves the risk")
     cwe_id: str = Field(..., description="CWE identification e.g. CWE-89")
     filename: Optional[str] = Field(None, description="Source filename for multi-file audits")
+    source: Optional[Literal["ai_gemini", "static_fallback"]] = Field(None, description="Detection engine source")
+    confidence: Optional[Literal["high", "medium", "low"]] = Field(None, description="Confidence assessment")
 
 class ScanResponse(BaseModel):
     score: int = Field(..., ge=0, le=100, description="Overall security score from 0 (unsafe) to 100 (secure)")

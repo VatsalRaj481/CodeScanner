@@ -2,8 +2,16 @@ import os
 import json
 import re
 import uuid
+import hashlib
+from cachetools import TTLCache
 import google.generativeai as genai
 from models import ScanResponse, Vulnerability, FileScanResult
+
+CACHE_TTL_SECONDS = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
+scan_cache = TTLCache(maxsize=1000, ttl=CACHE_TTL_SECONDS)
+
+def compute_code_hash(code: str, language: str) -> str:
+    return hashlib.sha256(f"{language}:{code.strip()}".encode("utf-8")).hexdigest()
 
 SYSTEM_PROMPT = """You are an expert Application Security (AppSec) Senior Auditor and Code Scanner.
 Your task is to analyze the provided source code for security vulnerabilities, bad practices, hardcoded secrets, injection flaws, weak cryptography, and unsafe system operations.
@@ -52,7 +60,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 why_risky="Hardcoded secrets can be extracted easily by attackers with code access or reverse engineering, leading to unauthorized system access.",
                 fix_code='import os\nDB_PASS = os.getenv("DB_PASS")\nSECRET = os.getenv("SECRET_KEY")',
                 fix_explanation="Retrieve sensitive credentials dynamically from environment variables or a secure key store.",
-                cwe_id="CWE-798"
+                cwe_id="CWE-798",
+                source="static_fallback",
+                confidence="high"
             ))
         if "execute(f\"SELECT" in line or "execute(\"SELECT" in line or "SELECT * FROM users WHERE name =" in line:
             vulns.append(Vulnerability(
@@ -65,7 +75,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 why_risky="An attacker can manipulate the input parameter to execute arbitrary SQL commands, access, modify, or delete database contents.",
                 fix_code='cur.execute("SELECT * FROM users WHERE name = ?", (username,))',
                 fix_explanation="Use parameterized queries (prepared statements) to separate SQL logic from user data.",
-                cwe_id="CWE-89"
+                cwe_id="CWE-89",
+                source="static_fallback",
+                confidence="high"
             ))
         if "os.system(" in line or "subprocess.call(" in line:
             vulns.append(Vulnerability(
@@ -78,7 +90,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 why_risky="Allows external actors to execute arbitrary system shell commands with the privilege level of the host application.",
                 fix_code='import subprocess\nsubprocess.run(["ping", "-c", "1", user_input], check=True)',
                 fix_explanation="Avoid raw shell invocation; pass command arguments as a strict array list without shell expansion.",
-                cwe_id="CWE-78"
+                cwe_id="CWE-78",
+                source="static_fallback",
+                confidence="high"
             ))
         if "hashlib.md5(" in line or "hashlib.sha1(" in line:
             vulns.append(Vulnerability(
@@ -91,7 +105,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 why_risky="MD5 is cryptographically broken and vulnerable to collision attacks and rapid rainbow table lookups.",
                 fix_code='import hashlib, secrets\nsalt = secrets.token_bytes(16)\nhash_val = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)',
                 fix_explanation="Use strong, salted key derivation functions such as Argon2, bcrypt, or PBKDF2 with SHA-256.",
-                cwe_id="CWE-327"
+                cwe_id="CWE-327",
+                source="static_fallback",
+                confidence="high"
             ))
 
     # Deduplicate vulns by title
@@ -122,16 +138,24 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
         vulnerabilities=unique_vulns
     )
 
-def analyze_code(code: str, language: str) -> ScanResponse:
+def analyze_code(code: str, language: str) -> tuple[ScanResponse, str, bool]:
+    """
+    Analyzes code snippet and returns (ScanResponse, engine_name, was_cached).
+    """
+    code_hash = compute_code_hash(code, language)
+    if code_hash in scan_cache:
+        cached_res, cached_engine = scan_cache[code_hash]
+        return cached_res, cached_engine, True
+
     api_key = os.getenv("GEMINI_API_KEY")
     
     if not api_key or api_key == "your_key_here":
-        # Fallback to local heuristic scanner if key is default or missing
-        return fallback_static_analysis(code, language)
+        res = fallback_static_analysis(code, language)
+        scan_cache[code_hash] = (res, "fallback")
+        return res, "fallback", False
 
     try:
         genai.configure(api_key=api_key)
-        # Try primary model
         model_names = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-flash"]
         model = None
         for name in model_names:
@@ -152,40 +176,40 @@ def analyze_code(code: str, language: str) -> ScanResponse:
         )
 
         text_content = response.text.strip()
-        
-        # Clean up code block ticks if model returned them
         if text_content.startswith("```"):
             text_content = re.sub(r"^```(?:json)?\n?", "", text_content)
             text_content = re.sub(r"\n?```$", "", text_content)
 
         parsed_data = json.loads(text_content)
         
-        # Validate into Pydantic ScanResponse model
+        # Annotate source and confidence on Gemini findings
+        if "vulnerabilities" in parsed_data and isinstance(parsed_data["vulnerabilities"], list):
+            for item in parsed_data["vulnerabilities"]:
+                item["source"] = item.get("source", "ai_gemini")
+                item["confidence"] = item.get("confidence", "high")
+
         scan_res = ScanResponse(**parsed_data)
-        return scan_res
+        scan_cache[code_hash] = (scan_res, "gemini")
+        return scan_res, "gemini", False
 
     except Exception as e:
         print(f"Gemini API analysis error/fallback triggered: {e}")
-        # If Gemini API call fails (e.g. key expired or quota limit), run fallback scanner so user experience is smooth
         res = fallback_static_analysis(code, language)
         if not res.vulnerabilities:
             res.error = f"AI analysis notice: {str(e)}"
-        return res
+        scan_cache[code_hash] = (res, "fallback")
+        return res, "fallback", False
 
-def analyze_batch(files: list) -> ScanResponse:
+def analyze_batch(files: list) -> tuple[ScanResponse, str, bool]:
     """
     Analyzes a batch of source files and aggregates findings.
-    
-    Weighted Average Score Calculation Rationale:
-    We compute the overall risk score as a weighted average where each file's score is weighted
-    by its lines of code (LOC). A weighted average by LOC prevents a small 2-line clean utility 
-    file from skewing or masking severe vulnerabilities in a major core codebase module, while accurately 
-    reflecting the overall security posture of the full repository/batch.
     """
     file_results = []
     all_vulns = []
     total_loc = 0
     weighted_score_sum = 0
+    any_cached = False
+    used_engines = set()
 
     severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0, "secure": 0}
     worst_rank = 0
@@ -195,10 +219,11 @@ def analyze_batch(files: list) -> ScanResponse:
         code = getattr(file_item, "code", "")
         language = getattr(file_item, "language", "auto")
 
-        # Reuse existing analyze_code function per file
-        res = analyze_code(code, language)
-        
-        # Tag each vulnerability with its source filename
+        res, engine, was_cached = analyze_code(code, language)
+        if was_cached:
+            any_cached = True
+        used_engines.add(engine)
+
         for v in res.vulnerabilities:
             v.filename = filename
             all_vulns.append(v)
@@ -219,15 +244,19 @@ def analyze_batch(files: list) -> ScanResponse:
         ))
 
     overall_score = round(weighted_score_sum / total_loc) if total_loc > 0 else 100
-    
     rank_to_level = {4: "critical", 3: "high", 2: "medium", 1: "low", 0: "secure"}
     overall_risk_level = rank_to_level.get(worst_rank, "secure")
 
-    return ScanResponse(
+    composite_engine = "gemini" if "gemini" in used_engines else "fallback"
+
+    batch_response = ScanResponse(
         score=overall_score,
         risk_level=overall_risk_level,
         vulnerabilities=all_vulns,
         total_files=len(files),
         file_results=file_results
     )
+
+    return batch_response, composite_engine, any_cached
+
 
