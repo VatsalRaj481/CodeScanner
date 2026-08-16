@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ScanResults } from './components/ScanResults';
+import { ScanHistoryPanel, ScanHistoryItem } from './components/ScanHistoryPanel';
 import { scanCodeApi, scanBatchCodeApi, ScanResponse, FileItem } from './api/scanner';
-import { ExternalLink, Terminal } from 'lucide-react';
+import { ExternalLink, Terminal, History } from 'lucide-react';
 
 const DEMO_CODE = `import sqlite3, os, hashlib
 
@@ -30,6 +31,23 @@ export const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking');
 
+  // Scan history state (persisted in localStorage, max 20 entries)
+  const [history, setHistory] = useState<ScanHistoryItem[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+
+  // Load scan history from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('ai_security_scan_history');
+      if (saved) {
+        setHistory(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to parse scan history from localStorage:', e);
+    }
+  }, []);
+
   useEffect(() => {
     const checkStatus = async () => {
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -49,6 +67,49 @@ export const App: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const saveToHistory = (response: ScanResponse, currentCode: string, currentBatch: FileItem[]) => {
+    const vList = response.vulnerabilities || [];
+    const counts = {
+      critical: vList.filter((v) => v.severity.toLowerCase() === 'critical').length,
+      high:     vList.filter((v) => v.severity.toLowerCase() === 'high').length,
+      medium:   vList.filter((v) => v.severity.toLowerCase() === 'medium').length,
+      low:      vList.filter((v) => ['low', 'info'].includes(v.severity.toLowerCase())).length,
+    };
+
+    // Store ONLY truncated preview (first ~100 chars), never full source code!
+    let previewText = '';
+    if (currentBatch.length > 0) {
+      previewText = `Batch (${currentBatch.length} files): ` + currentBatch.map((f) => f.filename).join(', ');
+    } else {
+      previewText = currentCode.trim().replace(/\s+/g, ' ');
+    }
+    if (previewText.length > 100) {
+      previewText = previewText.slice(0, 97) + '...';
+    }
+
+    const historyItem: ScanHistoryItem = {
+      id: `scan-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      score: response.score,
+      risk_level: response.risk_level,
+      counts,
+      snippet_preview: previewText,
+      file_count: response.total_files || (currentBatch.length > 0 ? currentBatch.length : 1),
+      results: response,
+    };
+
+    setHistory((prev) => {
+      const updated = [historyItem, ...prev].slice(0, 20); // Cap at 20 most recent
+      try {
+        localStorage.setItem('ai_security_scan_history', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Failed to save scan history to localStorage:', e);
+      }
+      return updated;
+    });
+    setSelectedHistoryId(historyItem.id);
+  };
+
   const handleScan = async () => {
     setIsLoading(true);
     setError(null);
@@ -57,6 +118,7 @@ export const App: React.FC = () => {
       if (batchFiles.length > 0) {
         const response = await scanBatchCodeApi(batchFiles);
         setResults(response);
+        saveToHistory(response, code, batchFiles);
       } else {
         if (!code.trim()) {
           setIsLoading(false);
@@ -64,6 +126,7 @@ export const App: React.FC = () => {
         }
         const response = await scanCodeApi(code, language);
         setResults(response);
+        saveToHistory(response, code, []);
       }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred during analysis.');
@@ -76,6 +139,22 @@ export const App: React.FC = () => {
     setCode(DEMO_CODE);
     setLanguage('python');
     setBatchFiles([]);
+  };
+
+  const handleSelectHistoryItem = (item: ScanHistoryItem) => {
+    setSelectedHistoryId(item.id);
+    setResults(item.results);
+    setIsHistoryOpen(false); // Switch to audit report view to display selected scan
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    setSelectedHistoryId(null);
+    try {
+      localStorage.removeItem('ai_security_scan_history');
+    } catch (e) {
+      console.error('Failed to clear scan history from localStorage:', e);
+    }
   };
 
   return (
@@ -110,13 +189,27 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* History Toggle Button */}
+            <button
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              type="button"
+              className={`flex items-center space-x-1.5 text-xs font-medium border px-3 py-1.5 rounded-xl transition-all btn-press cursor-pointer ${
+                isHistoryOpen
+                  ? 'bg-slate-700 text-white border-slate-500 shadow-md'
+                  : 'text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border-slate-700/60'
+              }`}
+            >
+              <History className="w-3.5 h-3.5 text-slate-400" />
+              <span>History ({history.length})</span>
+            </button>
+
             {/* Secondary / Ghost button style for Get Gemini API Key */}
             <a
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 rounded-xl shadow-none transition-all btn-press"
+              className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 rounded-xl transition-all btn-press hidden sm:flex"
             >
               <span>Get Gemini API Key</span>
               <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
@@ -143,9 +236,19 @@ export const App: React.FC = () => {
             />
           </div>
 
-          {/* Right Results Panel */}
+          {/* Right Results / History Panel */}
           <div className="lg:col-span-6 xl:col-span-6 flex flex-col h-[680px]">
-            <ScanResults results={results} isLoading={isLoading} error={error} onLoadDemo={handleLoadDemo} />
+            {isHistoryOpen ? (
+              <ScanHistoryPanel
+                history={history}
+                onSelectHistoryItem={handleSelectHistoryItem}
+                onClearHistory={handleClearHistory}
+                selectedHistoryId={selectedHistoryId}
+                onClose={() => setIsHistoryOpen(false)}
+              />
+            ) : (
+              <ScanResults results={results} isLoading={isLoading} error={error} onLoadDemo={handleLoadDemo} />
+            )}
           </div>
         </div>
       </main>
