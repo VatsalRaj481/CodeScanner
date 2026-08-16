@@ -4,47 +4,102 @@
 
 @layer base {
   body {
-    background-color: #090d16;
+    background-color: #0B0F17;
     color: #f1f5f9;
-    /* Apple §15: System font first; optical sizing on by default */
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     font-optical-sizing: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  code, pre {
-    font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  /* JetBrains Mono for all code, line numbers, CWE, and tabular data */
+  code, pre, .font-mono, .num {
+    font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   }
 
-  /* Apple §15: size-specific tracking — never one value for all sizes */
+  /* Typography Hierarchy Tiers (Weight + Size + Leading + Letter Spacing) */
+  .type-display {
+    font-size: clamp(1.25rem, 2vw, 1.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
+  .type-title {
+    font-size: 0.9375rem;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+  }
+
+  .type-body {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    letter-spacing: -0.005em;
+  }
+
+  .type-caption {
+    font-size: 0.6875rem;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+
   h1, h2 { letter-spacing: -0.02em; line-height: 1.15; }
-  h3      { letter-spacing: -0.01em; line-height: 1.25; }
-  .text-xs, .text-\[10px\], .text-\[11px\] { letter-spacing: 0.01em; }
+  h3      { letter-spacing: -0.015em; line-height: 1.25; }
 }
 
-/* ─── Material / Glass tokens (Apple §12) ─────────────────────────────────── */
-.glass {
-  background: rgba(17, 22, 37, 0.72);
+/* ─── Apple Material & Elevation Tokens ──────────────────────────────────── */
+.glass-header {
+  background: rgba(15, 21, 34, 0.78);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  /* bright top-edge = light catching the material */
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid rgba(255, 255, 255, 0.12); /* light-catching top edge */
 }
 
 .glass-panel {
-  background: rgba(9, 13, 22, 0.60);
-  backdrop-filter: blur(12px) saturate(160%);
-  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  background: rgba(13, 18, 30, 0.65);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
 }
 
-/* ─── Spring-like animation keyframes (Apple §4 — critically damped) ─────── */
+.panel-elevated {
+  background: rgba(18, 24, 38, 0.85);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 20px 40px -15px rgba(0, 0, 0, 0.7),
+    0 0 1px 1px rgba(255, 255, 255, 0.05);
+}
 
-/* Card materialize: scale from 0.96 + fade — like a surface arriving */
+.card-elevated {
+  background: rgba(23, 30, 46, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.card-elevated:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 30px -4px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Apple §1 Pointer-Down Action Feedback ─────────────────────────────── */
+.btn-press {
+  transition: transform 100ms ease-out, background-color 150ms ease, border-color 150ms ease;
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* ─── Motion & Keyframes ─────────────────────────────────────────────────── */
 @keyframes materialize {
   from {
     opacity: 0;
-    transform: scale(0.96) translateY(4px);
+    transform: scale(0.96) translateY(6px);
   }
   to {
     opacity: 1;
@@ -52,94 +107,67 @@
   }
 }
 
-/* Subtle entrance for panels / empty states */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0);   }
 }
 
-/* Glass surface materializing (blur + scale together — Apple §12) */
-@keyframes glass-in {
-  from {
-    opacity: 0;
-    transform: scale(0.98);
-    backdrop-filter: blur(0px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-    backdrop-filter: blur(20px) saturate(180%);
-  }
+@keyframes scan-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-/* Dropdown menu spring entrance */
-@keyframes dropdown-spring {
-  0%   { opacity: 0; transform: scaleY(0.85) translateY(-4px); }
-  70%  { transform: scaleY(1.02) translateY(1px); }
-  100% { opacity: 1; transform: scaleY(1) translateY(0); }
+@keyframes pulse-ring {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(0.95); opacity: 0; }
 }
 
-/* Status dot pulse — more physical, less mechanical */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.55; }
+.animate-materialize { animation: materialize 0.32s cubic-bezier(0.34, 1.20, 0.64, 1) both; }
+.animate-fade-up     { animation: fade-up 0.28s cubic-bezier(0.34, 1.10, 0.64, 1) both; }
+.animate-pulse-ring  { animation: pulse-ring 2.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+
+.btn-scanning {
+  background: linear-gradient(90deg, rgba(30,58,138,0.8) 0%, rgba(59,130,246,0.9) 50%, rgba(30,58,138,0.8) 100%);
+  background-size: 200% 100%;
+  animation: scan-shimmer 1.8s infinite linear;
 }
 
-@keyframes pulse-slow {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.35; transform: scale(1.15); }
-}
-
-/* Copy "Copied!" checkmark pop */
-@keyframes pop-in {
-  0%   { transform: scale(0.6); opacity: 0; }
-  60%  { transform: scale(1.15); }
-  100% { transform: scale(1);   opacity: 1; }
-}
-
-/* ─── Utility classes ─────────────────────────────────────────────────────── */
-.animate-materialize  { animation: materialize  0.3s cubic-bezier(0.34, 1.20, 0.64, 1) both; }
-.animate-fade-up      { animation: fade-up      0.25s cubic-bezier(0.34, 1.10, 0.64, 1) both; }
-.animate-glass-in     { animation: glass-in     0.35s cubic-bezier(0.34, 1.10, 0.64, 1) both; }
-.animate-dropdown     { animation: dropdown-spring 0.22s cubic-bezier(0.34, 1.20, 0.64, 1) both; transform-origin: top center; }
-.animate-pop-in       { animation: pop-in       0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-.animate-pulse-subtle { animation: pulse-subtle 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-.animate-pulse-slow   { animation: pulse-slow   2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-
-/* Apple §15: tabular numerals for score/count displays */
 .num { font-variant-numeric: tabular-nums; }
 
-/* ─── Scrollbars ──────────────────────────────────────────────────────────── */
+/* Scrollbars */
 ::-webkit-scrollbar       { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.10);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.18);
+  background: rgba(255, 255, 255, 0.22);
 }
 
-/* ─── Reduced-motion guard (Apple §14) ───────────────────────────────────── */
+/* Reduced Motion Fallbacks (Apple §14) */
 @media (prefers-reduced-motion: reduce) {
   .animate-materialize,
   .animate-fade-up,
-  .animate-glass-in,
-  .animate-dropdown,
-  .animate-pop-in {
+  .animate-pulse-ring,
+  .btn-scanning {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
   }
-  /* Replace spring transitions with short opacity cross-fades */
-  * { transition-duration: 150ms !important; }
-  .animate-pulse-slow   { animation: pulse-subtle 3s linear infinite; }
+  .card-elevated:hover {
+    transform: none !important;
+  }
+  * {
+    transition-duration: 150ms !important;
+  }
 }
 
-/* ─── Reduced-transparency guard (Apple §14) ─────────────────────────────── */
+/* Reduced Transparency Fallbacks */
 @media (prefers-reduced-transparency: reduce) {
-  .glass, .glass-panel {
-    background: #111625 !important;
+  .glass-header, .glass-panel, .panel-elevated {
+    background: #121824 !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ScanResponse } from '../api/scanner';
 import { VulnCard } from './VulnCard';
-import { ShieldAlert, AlertOctagon, CheckCircle2, Code } from 'lucide-react';
+import { ShieldAlert, AlertOctagon, CheckCircle2, Code, Copy, Download, FileText, ChevronDown, Check } from 'lucide-react';
+import { jsPDF } from 'jspdf';
 
 interface ScanResultsProps {
   results: ScanResponse | null;
@@ -12,73 +13,317 @@ interface ScanResultsProps {
 
 // ── Skeleton loader ──────────────────────────────────────────────────────────
 const ScanResultsSkeleton: React.FC = () => (
-  <div className="flex flex-col h-full bg-[#111625]/80 border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/40 animate-pulse">
-    <div className="flex items-center px-4 py-3 glass-panel border-b border-white/[0.06]">
-      <div className="w-4 h-4 bg-white/[0.06] rounded mr-2" />
-      <div className="h-3.5 bg-white/[0.06] rounded w-24" />
+  <div className="flex flex-col h-full panel-elevated rounded-2xl overflow-hidden animate-pulse">
+    <div className="flex items-center px-4 py-3 glass-panel border-b border-slate-800/80">
+      <div className="w-4 h-4 bg-slate-800 rounded mr-2" />
+      <div className="h-3.5 bg-slate-800 rounded w-24" />
     </div>
     <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-      <div className="flex items-center space-x-5 pb-6 border-b border-white/[0.06]">
-        <div className="w-20 h-20 rounded-full bg-white/[0.05] shrink-0" />
+      <div className="flex items-center space-x-5 pb-6 border-b border-slate-800/80">
+        <div className="w-28 h-28 rounded-full bg-slate-800/50 shrink-0" />
         <div className="space-y-2.5 flex-1">
-          <div className="h-3 bg-white/[0.05] rounded w-1/4" />
-          <div className="h-5 bg-white/[0.05] rounded w-1/2" />
-          <div className="h-3 bg-white/[0.05] rounded w-1/3" />
+          <div className="h-3 bg-slate-800/50 rounded w-1/4" />
+          <div className="h-5 bg-slate-800/50 rounded w-1/2" />
+          <div className="h-3 bg-slate-800/50 rounded w-1/3" />
         </div>
       </div>
       <div className="grid grid-cols-4 gap-3">
-        {[0,1,2,3].map(i => <div key={i} className="h-14 bg-white/[0.04] rounded-xl" />)}
+        {[0,1,2,3].map(i => <div key={i} className="h-14 bg-slate-800/30 rounded-xl" />)}
       </div>
       <div className="space-y-4 pt-2">
-        <div className="h-3.5 bg-white/[0.05] rounded w-1/4" />
-        <div className="h-28 bg-white/[0.03] rounded-xl border border-white/[0.05]" />
-        <div className="h-28 bg-white/[0.03] rounded-xl border border-white/[0.05]" />
+        <div className="h-3.5 bg-slate-800/40 rounded w-1/4" />
+        <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
+        <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
       </div>
-    </div>
-  </div>
-);
-
-// ── Panel wrapper — consistent outer shell ───────────────────────────────────
-const PanelWrapper: React.FC<{ children: React.ReactNode; headerTitle?: string }> = ({
-  children,
-  headerTitle = 'Audit Report',
-}) => (
-  <div className="flex flex-col h-full bg-[#111625]/80 border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/40">
-    <div className="flex items-center justify-between px-4 py-3 glass-panel border-b border-white/[0.06]">
-      <div className="flex items-center space-x-2">
-        <ShieldAlert className="w-4 h-4 text-indigo-400" />
-        <span className="text-xs font-semibold text-gray-400 uppercase" style={{ letterSpacing: '0.06em' }}>
-          {headerTitle}
-        </span>
-      </div>
-    </div>
-    <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[#090d16]/20">
-      {children}
     </div>
   </div>
 );
 
 // ── Main component ───────────────────────────────────────────────────────────
 export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, error, onLoadDemo }) => {
+  const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
+  const [animatedScore, setAnimatedScore] = useState<number>(0);
+  const [copiedReport, setCopiedReport] = useState<boolean>(false);
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState<boolean>(false);
+
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close export dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setIsExportDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Critically damped spring physics loop for Risk Score ring animation (Apple §4)
+  useEffect(() => {
+    if (!results) {
+      setAnimatedScore(0);
+      return;
+    }
+
+    const target = results.score;
+    let current = animatedScore;
+    let velocity = 0;
+    let animationFrameId: number;
+    let lastTime = performance.now();
+
+    const response = 0.4;
+    const omega = (2 * Math.PI) / response;
+    const k = omega * omega;
+    const c = 2 * omega;
+
+    const step = (now: number) => {
+      const dt = Math.min((now - lastTime) / 1000, 0.064);
+      lastTime = now;
+
+      const x = current - target;
+      const accel = -k * x - c * velocity;
+      velocity += accel * dt;
+      current += velocity * dt;
+
+      if (Math.abs(current - target) < 0.05 && Math.abs(velocity) < 0.05) {
+        setAnimatedScore(target);
+      } else {
+        setAnimatedScore(current);
+        animationFrameId = requestAnimationFrame(step);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [results?.score]);
+
+  // Toggle multi-select severity filter
+  const toggleSeverityFilter = (sev: string) => {
+    setSelectedSeverities((prev) =>
+      prev.includes(sev) ? prev.filter((s) => s !== sev) : [...prev, sev]
+    );
+  };
+
+  // Generate Markdown report summary
+  const generateMarkdownReport = (res: ScanResponse) => {
+    const vList = res.vulnerabilities || [];
+    const counts = {
+      critical: vList.filter((v) => v.severity.toLowerCase() === 'critical').length,
+      high:     vList.filter((v) => v.severity.toLowerCase() === 'high').length,
+      medium:   vList.filter((v) => v.severity.toLowerCase() === 'medium').length,
+      low:      vList.filter((v) => ['low', 'info'].includes(v.severity.toLowerCase())).length,
+    };
+
+    let md = `# 🛡️ AI Security Scanner Audit Report\n\n`;
+    md += `**Overall Security Score:** ${res.score}/100\n`;
+    md += `**Risk Level:** ${res.risk_level.toUpperCase()}\n`;
+    md += `**Total Vulnerabilities Flagged:** ${vList.length}\n\n`;
+
+    md += `## Severity Summary\n`;
+    md += `- **Critical:** ${counts.critical}\n`;
+    md += `- **High:** ${counts.high}\n`;
+    md += `- **Medium:** ${counts.medium}\n`;
+    md += `- **Low / Info:** ${counts.low}\n\n`;
+
+    md += `## Vulnerability Findings\n\n`;
+
+    if (vList.length === 0) {
+      md += `*No vulnerabilities identified in this audit.*\n`;
+    } else {
+      vList.forEach((v, idx) => {
+        md += `### ${idx + 1}. [${v.severity.toUpperCase()}] ${v.title}\n`;
+        md += `- **CWE ID:** ${v.cwe_id}\n`;
+        md += `- **Category:** ${v.category}\n`;
+        if (v.line_numbers && v.line_numbers.length > 0) {
+          md += `- **Line Numbers:** Line ${v.line_numbers.join(', ')}\n`;
+        }
+        md += `- **Description:** ${v.description}\n`;
+        md += `- **Why it's risky:** ${v.why_risky}\n`;
+        md += `- **Recommended Fix Explanation:** ${v.fix_explanation}\n\n`;
+        md += `\`\`\`code\n${v.fix_code}\n\`\`\`\n\n`;
+      });
+    }
+
+    return md;
+  };
+
+  // Copy report to clipboard
+  const handleCopyReport = () => {
+    if (!results) return;
+    const md = generateMarkdownReport(results);
+    navigator.clipboard.writeText(md);
+    setCopiedReport(true);
+    setTimeout(() => setCopiedReport(false), 2000);
+  };
+
+  // Export as Markdown file (.md)
+  const handleExportMarkdown = () => {
+    if (!results) return;
+    const md = generateMarkdownReport(results);
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `security-audit-report-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsExportDropdownOpen(false);
+  };
+
+  // Export as PDF file (.pdf)
+  const handleExportPDF = () => {
+    if (!results) return;
+    const doc = new jsPDF();
+    let y = 15;
+
+    // Header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.text('AI Security Scanner Audit Report', 14, y);
+    y += 10;
+
+    // Summary metadata
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Overall Security Score: ${results.score}/100`, 14, y);
+    y += 6;
+    doc.text(`Risk Level: ${results.risk_level.toUpperCase()}`, 14, y);
+    y += 6;
+    doc.text(`Total Vulnerabilities: ${results.vulnerabilities?.length || 0}`, 14, y);
+    y += 10;
+
+    // Findings section
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Vulnerability Findings:', 14, y);
+    y += 8;
+
+    const vList = results.vulnerabilities || [];
+    vList.forEach((v, idx) => {
+      if (y > 260) {
+        doc.addPage();
+        y = 15;
+      }
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text(`${idx + 1}. [${v.severity.toUpperCase()}] ${v.title} (${v.cwe_id})`, 14, y);
+      y += 6;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      const descLines = doc.splitTextToSize(`Description: ${v.description}`, 180);
+      doc.text(descLines, 14, y);
+      y += descLines.length * 4.5 + 4;
+
+      const fixLines = doc.splitTextToSize(`Fix: ${v.fix_explanation}`, 180);
+      doc.text(fixLines, 14, y);
+      y += fixLines.length * 4.5 + 6;
+    });
+
+    doc.save(`security-audit-report-${Date.now()}.pdf`);
+    setIsExportDropdownOpen(false);
+  };
+
+  // Outer wrapper component with Toolbar
+  const PanelWrapper: React.FC<{ children: React.ReactNode; headerTitle?: string }> = ({
+    children,
+    headerTitle = 'Audit Report',
+  }) => (
+    <div className="flex flex-col h-full panel-elevated rounded-2xl overflow-hidden">
+      <div className="relative z-20 flex items-center justify-between px-4 py-3 glass-panel border-b border-slate-800/80">
+        <div className="flex items-center space-x-2">
+          <ShieldAlert className="w-4 h-4 text-slate-300" />
+          <span className="type-caption text-slate-300 font-semibold uppercase tracking-wider">
+            {headerTitle}
+          </span>
+        </div>
+
+        {/* Toolbar: Copy Report & Export Buttons (only when results exist) */}
+        {results && (
+          <div className="flex items-center space-x-2">
+            {/* Copy Report Button */}
+            <button
+              onClick={handleCopyReport}
+              type="button"
+              title="Copy report summary in Markdown format"
+              className="flex items-center space-x-1.5 bg-slate-900/80 hover:bg-slate-800/80 text-xs font-medium text-slate-300 hover:text-white border border-slate-800 rounded-xl px-2.5 py-1.5 transition-all btn-press cursor-pointer"
+            >
+              {copiedReport ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 font-semibold text-[11px]">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-[11px]">Copy Report</span>
+                </>
+              )}
+            </button>
+
+            {/* Export Dropdown */}
+            <div className="relative" ref={exportDropdownRef}>
+              <button
+                onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+                type="button"
+                className="flex items-center space-x-1.5 bg-slate-900/80 hover:bg-slate-800/80 text-xs font-medium text-slate-300 hover:text-white border border-slate-800 rounded-xl px-2.5 py-1.5 transition-all btn-press cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[11px]">Export</span>
+                <ChevronDown className="w-3 h-3 text-slate-500" />
+              </button>
+
+              {isExportDropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-48 bg-[#121824] border border-slate-700/60 rounded-xl shadow-2xl z-50 overflow-hidden py-1 animate-materialize">
+                  <button
+                    type="button"
+                    onClick={handleExportMarkdown}
+                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition-all btn-press flex items-center space-x-2 cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Export as Markdown (.md)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportPDF}
+                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800/80 hover:text-white transition-all btn-press flex items-center space-x-2 cursor-pointer border-t border-slate-800/60"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Export as PDF</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 p-6 overflow-y-auto space-y-6 bg-[#0B0F17]/30">
+        {children}
+      </div>
+    </div>
+  );
+
   if (isLoading) return <ScanResultsSkeleton />;
 
-  // 1. Error state
+  // Error state
   if (error) {
     return (
       <PanelWrapper headerTitle="Scan Failed">
         <div className="flex flex-col items-center justify-center h-full min-h-[350px] text-center space-y-4 py-8 animate-fade-up">
-          <div className="w-14 h-14 rounded-2xl bg-red-950/30 border border-red-900/20 flex items-center justify-center">
-            <AlertOctagon className="w-7 h-7 text-red-400" />
+          <div className="w-14 h-14 rounded-2xl bg-rose-950/30 border border-rose-900/30 flex items-center justify-center">
+            <AlertOctagon className="w-7 h-7 text-rose-400" />
           </div>
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-red-400" style={{ letterSpacing: '-0.01em' }}>
+            <h3 className="type-title text-rose-400">
               Scan Execution Error
             </h3>
-            <p className="text-xs text-gray-300 max-w-sm bg-red-950/20 px-4 py-3 rounded-xl border border-red-900/20 font-mono leading-relaxed">
+            <p className="text-xs text-slate-300 max-w-sm bg-rose-950/20 px-4 py-3 rounded-xl border border-rose-900/30 font-mono leading-relaxed">
               {error}
             </p>
-            <p className="text-[11px] text-gray-500" style={{ letterSpacing: '0.01em' }}>
-              Ensure the backend is online.
+            <p className="type-caption text-slate-500 font-normal">
+              Ensure the backend server is running and accessible.
             </p>
           </div>
         </div>
@@ -86,27 +331,26 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     );
   }
 
-  // 2. Empty state
+  // Empty state
   if (!results) {
     return (
       <PanelWrapper headerTitle="Audit Report">
         <div className="flex flex-col items-center justify-center h-full min-h-[350px] text-center space-y-4 py-8 animate-fade-up">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-950/30 border border-indigo-900/20 flex items-center justify-center text-indigo-400 shadow-lg shadow-indigo-900/20">
+          <div className="w-14 h-14 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-300 shadow-lg shadow-black/40">
             <Code className="w-7 h-7" />
           </div>
           <div className="space-y-1.5">
-            <h3 className="text-sm font-medium text-gray-200" style={{ letterSpacing: '-0.01em' }}>
-              Ready for audit
+            <h3 className="type-title text-slate-200">
+              Ready for Security Audit
             </h3>
-            <p className="text-xs text-gray-500 max-w-xs leading-relaxed">
-              Paste your code snippet or load our demo script to scan for vulnerabilities.
+            <p className="type-body text-slate-400 max-w-xs leading-relaxed">
+              Paste source code snippet or click below to load our intentionally vulnerable demo script.
             </p>
           </div>
-          {/* Apple §1 pointer-down feedback */}
           <button
             onClick={onLoadDemo}
             type="button"
-            className="px-4 py-2 bg-white/[0.04] hover:bg-indigo-950/40 text-indigo-400 hover:text-indigo-300 border border-indigo-900/30 rounded-xl text-xs font-medium transition-all duration-150 active:scale-[0.96]"
+            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold shadow-md transition-all btn-press cursor-pointer"
           >
             Load Demo Code
           </button>
@@ -115,58 +359,74 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     );
   }
 
-  // 3. Results state
+  // Results state
   const vulns = results.vulnerabilities || [];
   const counts = {
-    critical: vulns.filter((v) => v.severity === 'critical').length,
-    high:     vulns.filter((v) => v.severity === 'high').length,
-    medium:   vulns.filter((v) => v.severity === 'medium').length,
-    low:      vulns.filter((v) => v.severity === 'low' || v.severity === 'info').length,
+    critical: vulns.filter((v) => v.severity.toLowerCase() === 'critical').length,
+    high:     vulns.filter((v) => v.severity.toLowerCase() === 'high').length,
+    medium:   vulns.filter((v) => v.severity.toLowerCase() === 'medium').length,
+    low:      vulns.filter((v) => ['low', 'info'].includes(v.severity.toLowerCase())).length,
   };
 
+  // Multi-select filtered vulnerabilities
+  const filteredVulns = selectedSeverities.length === 0
+    ? vulns
+    : vulns.filter((v) => {
+        const s = v.severity.toLowerCase();
+        return selectedSeverities.includes(s) || (selectedSeverities.includes('low') && s === 'info');
+      });
+
   const getScoreTheme = (score: number) => {
-    if (score >= 85) return { text: 'text-green-400',  stroke: '#4ade80', ring: 'rgba(74,222,128,0.15)',  bg: 'bg-green-950/20 border-green-900/20' };
-    if (score >= 60) return { text: 'text-amber-400',  stroke: '#fbbf24', ring: 'rgba(251,191,36,0.15)',  bg: 'bg-amber-950/20 border-amber-900/20' };
-    if (score >= 35) return { text: 'text-orange-400', stroke: '#fb923c', ring: 'rgba(251,146,60,0.15)',  bg: 'bg-orange-950/20 border-orange-900/20' };
-    return               { text: 'text-red-400',    stroke: '#f87171', ring: 'rgba(248,113,113,0.15)', bg: 'bg-red-950/20 border-red-900/20' };
+    if (score >= 85) return { text: 'text-emerald-400', stroke: '#34D399', ring: 'rgba(52,211,153,0.15)', bg: 'bg-emerald-950/30 border-emerald-800/30' };
+    if (score >= 60) return { text: 'text-amber-400',   stroke: '#FBBF24', ring: 'rgba(251,191,36,0.15)',  bg: 'bg-amber-950/30 border-amber-800/30' };
+    if (score >= 35) return { text: 'text-orange-400',  stroke: '#FB923C', ring: 'rgba(251,146,60,0.15)',  bg: 'bg-orange-950/30 border-orange-800/30' };
+    return               { text: 'text-rose-400',    stroke: '#F87171', ring: 'rgba(248,113,113,0.15)', bg: 'bg-rose-950/30 border-rose-800/30' };
   };
 
   const scoreTheme = getScoreTheme(results.score);
-  // r=42 → circumference = 2π×42 ≈ 263.9
-  const CIRC = 263.9;
-  const strokeDashoffset = CIRC - (CIRC * results.score) / 100;
+  
+  // Radius r=52 → circumference = 2 * PI * 52 ≈ 326.726
+  const CIRC = 326.726;
+  const strokeDashoffset = CIRC - (CIRC * Math.max(0, Math.min(100, animatedScore))) / 100;
 
   return (
     <PanelWrapper headerTitle="Audit Report">
       {/* ── Score + summary card ── */}
-      <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl p-5 space-y-5 animate-fade-up">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-5 border-b border-white/[0.06]">
-          {/* Circular score gauge */}
-          <div className="flex items-center space-x-5">
-            <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                {/* Outer glow ring */}
-                <circle cx="50" cy="50" r="42" fill="transparent" stroke={scoreTheme.ring} strokeWidth="10" />
+      <div className="card-elevated rounded-2xl p-5 space-y-5 animate-fade-up">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-5 border-b border-slate-800/80">
+          
+          {/* Enlarged Emotional Focal Point Risk Score Gauge */}
+          <div className="flex items-center space-x-6">
+            <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                <defs>
+                  <linearGradient id="scoreGaugeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#34D399" />
+                    <stop offset="50%" stopColor="#FBBF24" />
+                    <stop offset="100%" stopColor="#F87171" />
+                  </linearGradient>
+                </defs>
+                {/* Outer Glow Ring */}
+                <circle cx="60" cy="60" r="52" fill="transparent" stroke={scoreTheme.ring} strokeWidth="12" />
                 {/* Track */}
-                <circle cx="50" cy="50" r="42" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="7" />
-                {/* Progress — Apple §4: ease-in-out spring feel with 1s ease-out */}
+                <circle cx="60" cy="60" r="52" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                {/* Dynamic Gradient Progress Stroke */}
                 <circle
-                  cx="50" cy="50" r="42"
+                  cx="60" cy="60" r="52"
                   fill="transparent"
-                  stroke={scoreTheme.stroke}
-                  strokeWidth="7"
+                  stroke="url(#scoreGaugeGradient)"
+                  strokeWidth="8"
                   strokeDasharray={CIRC}
                   strokeDashoffset={strokeDashoffset}
                   strokeLinecap="round"
-                  className="transition-all duration-1000 ease-out"
                 />
               </svg>
-              {/* Apple §15: tabular numerals, tight leading at large size */}
+              {/* Display Score tabular numbers */}
               <div className="absolute flex flex-col items-center justify-center">
-                <span className={`text-xl font-bold num ${scoreTheme.text}`} style={{ letterSpacing: '-0.03em', lineHeight: 1 }}>
-                  {results.score}
+                <span className={`text-2xl font-bold num ${scoreTheme.text}`} style={{ letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  {Math.round(animatedScore)}
                 </span>
-                <span className="text-[9px] text-gray-500 font-semibold uppercase mt-0.5" style={{ letterSpacing: '0.08em' }}>
+                <span className="type-caption text-slate-500 font-semibold uppercase mt-1">
                   Score
                 </span>
               </div>
@@ -174,7 +434,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
 
             <div className="space-y-1.5">
               <div className="flex items-center space-x-2">
-                <span className="text-[10px] text-gray-500 uppercase font-semibold" style={{ letterSpacing: '0.06em' }}>
+                <span className="type-caption text-slate-500 uppercase font-semibold">
                   Risk Level:
                 </span>
                 <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${scoreTheme.bg} ${scoreTheme.text}`}
@@ -182,14 +442,14 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                   {results.risk_level}
                 </span>
               </div>
-              <h2 className="text-base font-bold text-gray-100" style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+              <h2 className="type-title text-slate-100">
                 {results.score >= 85
                   ? 'Security Status Excellent'
                   : results.score >= 50
                   ? 'Vulnerabilities Identified'
                   : 'Critical Risk Detected'}
               </h2>
-              <p className="text-xs text-gray-500 leading-relaxed">
+              <p className="type-body text-slate-400">
                 {vulns.length === 0
                   ? 'No critical vulnerabilities found in scanned code.'
                   : `Audit completed — ${vulns.length} issue(s) flagged.`}
@@ -198,50 +458,91 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
           </div>
         </div>
 
-        {/* ── Severity summary badges — Apple §15 tabular nums ── */}
+        {/* ── Multi-Select Interactive Severity Badges Filter ── */}
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: 'Critical', count: counts.critical, color: 'text-red-400',    bg: 'bg-red-950/20 border-red-900/20' },
-            { label: 'High',     count: counts.high,     color: 'text-orange-400', bg: 'bg-orange-950/20 border-orange-900/20' },
-            { label: 'Medium',   count: counts.medium,   color: 'text-amber-400',  bg: 'bg-amber-950/20 border-amber-900/20' },
-            { label: 'Low',      count: counts.low,      color: 'text-blue-400',   bg: 'bg-blue-950/20 border-blue-900/20' },
-          ].map(({ label, count, color, bg }) => (
-            <div key={label} className={`${bg} border rounded-xl py-3 text-center space-y-0.5`}>
-              <span className={`text-[10px] ${color} uppercase font-semibold block`} style={{ letterSpacing: '0.05em' }}>
-                {label}
-              </span>
-              <span className={`text-lg font-bold num ${color}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-                {count}
-              </span>
-            </div>
-          ))}
+            { id: 'critical', label: 'Critical', count: counts.critical, color: 'text-rose-400',    bg: 'bg-rose-950/30 border-rose-800/40 shadow-[0_0_12px_rgba(244,63,94,0.12)]' },
+            { id: 'high',     label: 'High',     count: counts.high,     color: 'text-amber-400',   bg: 'bg-amber-950/30 border-amber-800/40 shadow-[0_0_12px_rgba(245,158,11,0.12)]' },
+            { id: 'medium',   label: 'Medium',   count: counts.medium,   color: 'text-yellow-400',  bg: 'bg-yellow-950/30 border-yellow-800/40 shadow-[0_0_12px_rgba(234,179,8,0.12)]' },
+            { id: 'low',      label: 'Low',      count: counts.low,      color: 'text-sky-400',     bg: 'bg-sky-950/30 border-sky-800/40 shadow-[0_0_12px_rgba(56,189,248,0.12)]' },
+          ].map(({ id, label, count, color, bg }) => {
+            const isSelected = selectedSeverities.includes(id);
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => toggleSeverityFilter(id)}
+                className={`${bg} border rounded-xl py-2.5 px-1 text-center space-y-0.5 transition-all btn-press cursor-pointer ${
+                  isSelected ? 'ring-2 ring-slate-300 scale-[1.03] shadow-lg shadow-black/40' : 'hover:scale-[1.01] opacity-75 hover:opacity-100'
+                }`}
+              >
+                <span className={`type-caption ${color} uppercase font-semibold block flex items-center justify-center space-x-1`}>
+                  <span>{label}</span>
+                  {isSelected && <Check className="w-3 h-3 text-slate-200 inline-block" />}
+                </span>
+                <span className={`text-base font-bold num ${color}`} style={{ letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ── Vulnerability cards list ── */}
+      {/* ── Vulnerability Cards List ── */}
       <div className="space-y-3 pt-1">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase flex items-center justify-between" style={{ letterSpacing: '0.06em' }}>
-          <span>Vulnerability Findings</span>
-          <span className="font-mono text-gray-600 font-normal">Total: {vulns.length}</span>
+        <h3 className="type-caption text-slate-500 uppercase font-semibold flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span>Vulnerability Findings</span>
+            {selectedSeverities.length > 0 && (
+              <span className="text-[10px] font-mono text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full lowercase">
+                filters: {selectedSeverities.join(', ')}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-3 font-mono text-slate-400 font-normal">
+            {selectedSeverities.length > 0 && (
+              <button
+                onClick={() => setSelectedSeverities([])}
+                className="type-caption text-slate-400 hover:text-white underline font-sans cursor-pointer"
+              >
+                Clear filters
+              </button>
+            )}
+            <span>
+              Showing {filteredVulns.length} of {vulns.length}
+            </span>
+          </div>
         </h3>
 
         {vulns.length === 0 ? (
-          <div className="bg-green-950/10 border border-green-900/20 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
-            <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto" style={{ filter: 'drop-shadow(0 0 8px rgba(74,222,128,0.3))' }} />
-            <h4 className="text-sm font-semibold text-green-300" style={{ letterSpacing: '-0.01em' }}>
+          <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" style={{ filter: 'drop-shadow(0 0 10px rgba(52,211,153,0.3))' }} />
+            <h4 className="type-title text-emerald-300">
               Clean Bill of Health
             </h4>
-            <p className="text-xs text-gray-500 max-w-xs mx-auto leading-relaxed">
+            <p className="type-body text-slate-400 max-w-xs mx-auto leading-relaxed">
               No known security flaws, injection points, or hardcoded secrets were detected in this code snippet.
             </p>
           </div>
+        ) : filteredVulns.length === 0 ? (
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
+            <p className="type-body text-slate-400">
+              No vulnerabilities matching active filters ({selectedSeverities.join(', ')}).
+            </p>
+            <button
+              onClick={() => setSelectedSeverities([])}
+              className="type-caption text-slate-300 underline hover:text-white cursor-pointer"
+            >
+              Clear all filters
+            </button>
+          </div>
         ) : (
-          // Apple §12: staggered materialize entrance on each card
-          vulns.map((vuln, i) => (
+          filteredVulns.map((vuln, i) => (
             <div
               key={vuln.id}
               className="animate-materialize"
-              style={{ animationDelay: `${i * 60}ms` }}
+              style={{ animationDelay: `${i * 50}ms` }}
             >
               <VulnCard vulnerability={vuln} />
             </div>

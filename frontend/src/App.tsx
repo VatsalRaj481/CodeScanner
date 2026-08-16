@@ -69,44 +69,47 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-gray-100 flex flex-col selection:bg-indigo-950/60">
-      {/* ── Top Header Navigation — glass material (Apple §12) ── */}
-      <header className="glass border-b border-white/[0.06] sticky top-0 z-50">
+    <div className="min-h-screen bg-[#0B0F17] text-slate-100 flex flex-col relative overflow-x-hidden selection:bg-slate-800 selection:text-slate-100">
+      {/* Background ambient radial glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-gradient-to-b from-slate-800/15 via-slate-900/5 to-transparent blur-3xl pointer-events-none -z-10" />
+
+      {/* ── Top Header Navigation — Glass material (Apple §12) ── */}
+      <header className="glass-header sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {/* Shield logo */}
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center shadow-lg shadow-indigo-900/40">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <div className="flex items-center space-x-3.5">
+            {/* Shield Logo */}
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 border border-slate-700/60 flex items-center justify-center shadow-md shadow-black/40 shrink-0">
+              <svg className="w-5 h-5 text-slate-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 <path d="M9 11l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
-            <div>
+            <div className="space-y-0.5">
               <div className="flex items-center space-x-2">
-                {/* Apple §15: tight tracking on heading-weight text */}
-                <h1 className="text-sm font-semibold text-gray-100" style={{ letterSpacing: '-0.015em' }}>
+                <h1 className="type-title text-slate-100 font-semibold leading-tight">
                   AI Security Scanner
                 </h1>
-                <span className="text-[10px] font-mono font-medium text-gray-500 border border-white/[0.07] bg-white/[0.04] px-1.5 py-0.5 rounded">
+                {/* Low-contrast pill v1.0.0 badge immediately after title */}
+                <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700/50">
                   v1.0.0
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500" style={{ letterSpacing: '0.01em' }}>
+              <p className="text-xs text-slate-400 font-normal leading-tight">
                 Automated static code security and vulnerability auditing
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Apple §1: respond on pointer-down with active:scale */}
+            {/* Secondary / Ghost button style for Get Gemini API Key */}
             <a
               href="https://aistudio.google.com/apikey"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 hover:bg-indigo-950/60 border border-indigo-900/40 px-3.5 py-1.5 rounded-lg transition-all duration-150 active:scale-[0.96]"
+              className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border border-slate-700/60 px-3.5 py-1.5 rounded-xl shadow-none transition-all btn-press"
             >
               <span>Get Gemini API Key</span>
-              <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+              <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
             </a>
           </div>
         </div>
@@ -135,22 +138,32 @@ export const App: React.FC = () => {
         </div>
       </main>
 
-      {/* ── Footer — glass material (Apple §12) ── */}
-      <footer className="glass border-t border-white/[0.06] py-4 mt-8">
-        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-gray-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+      {/* ── Footer ── */}
+      <footer className="glass-header border-t border-slate-800/80 py-4 mt-8">
+        <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <Terminal className="w-3.5 h-3.5 text-gray-500" />
-            <span style={{ letterSpacing: '0.01em' }}>AI Security Scanner — Production Ready Static &amp; Dynamic Analysis</span>
+            <Terminal className="w-3.5 h-3.5 text-slate-500" />
+            <span className="type-caption text-slate-500 font-normal">AI Security Scanner — Production Ready Static &amp; Dynamic Analysis</span>
           </div>
-          <div className="flex items-center space-x-2 bg-white/[0.03] px-3 py-1.5 rounded-lg border border-white/[0.06] select-none">
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                backendStatus === 'online'   ? 'bg-green-400 animate-pulse-slow' :
-                backendStatus === 'checking' ? 'bg-amber-400 animate-pulse-subtle' :
-                'bg-red-500'
-              }`}
-            />
-            <span className="text-gray-500 font-medium font-mono text-[11px]" style={{ letterSpacing: '0.06em' }}>
+          <div className="flex items-center space-x-2 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-slate-800 select-none">
+            {/* Multi-ring ambient pulsing status dot */}
+            <div className="relative w-2.5 h-2.5 flex items-center justify-center">
+              <span
+                className={`absolute w-full h-full rounded-full ${
+                  backendStatus === 'online'   ? 'bg-emerald-400/60 animate-pulse-ring' :
+                  backendStatus === 'checking' ? 'bg-amber-400/60 animate-pulse-ring' :
+                  'bg-rose-500/60'
+                }`}
+              />
+              <span
+                className={`w-1.5 h-1.5 rounded-full relative z-10 ${
+                  backendStatus === 'online'   ? 'bg-emerald-400' :
+                  backendStatus === 'checking' ? 'bg-amber-400' :
+                  'bg-rose-500'
+                }`}
+              />
+            </div>
+            <span className="text-slate-400 font-medium font-mono text-[11px] tracking-wider">
               API STATUS:{' '}
               {backendStatus === 'online'   ? 'OPERATIONAL' :
                backendStatus === 'checking' ? 'CONNECTING...' :

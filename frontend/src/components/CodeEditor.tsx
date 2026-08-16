@@ -135,7 +135,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className="flex flex-col h-full bg-[#111625]/80 border border-white/[0.07] rounded-2xl overflow-hidden shadow-xl shadow-black/40 relative"
+      className="flex flex-col h-full panel-elevated rounded-2xl overflow-hidden relative"
     >
       {/* Hidden File Input */}
       <input
@@ -150,60 +150,58 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
       {/* ── Drag-over overlay — materialize in (Apple §12) ── */}
       {isDragging && (
-        <div className="absolute inset-0 z-30 pointer-events-none animate-glass-in rounded-2xl overflow-hidden">
+        <div className="absolute inset-0 z-30 pointer-events-none animate-materialize rounded-2xl overflow-hidden">
           <div
             className="absolute inset-0 flex flex-col items-center justify-center space-y-3"
             style={{
-              background: 'rgba(9, 13, 22, 0.88)',
+              background: 'rgba(11, 15, 23, 0.92)',
               backdropFilter: 'blur(16px) saturate(160%)',
-              border: '1.5px dashed rgba(99, 102, 241, 0.5)',
+              border: '1.5px dashed rgba(100, 116, 139, 0.5)',
               borderRadius: 'inherit',
             }}
           >
-            <Upload className="w-10 h-10 text-indigo-400" style={{ filter: 'drop-shadow(0 0 8px rgba(99,102,241,0.5))' }} />
-            <p className="text-sm font-medium text-gray-200" style={{ letterSpacing: '-0.01em' }}>Drop code file to import</p>
-            <p className="text-xs text-gray-500" style={{ letterSpacing: '0.01em' }}>Supported: .py, .js, .ts, .java, .go, .sql, .sh</p>
+            <Upload className="w-10 h-10 text-slate-300" style={{ filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.2))' }} />
+            <p className="type-title text-slate-100">Drop code file to import</p>
+            <p className="type-caption text-slate-500 font-mono">Supported: .py, .js, .ts, .java, .go, .sql, .sh</p>
           </div>
         </div>
       )}
 
-      {/* ── Editor Header Bar — glass panel (Apple §12) ── */}
-      <div className="flex flex-wrap items-center justify-between px-4 py-3 glass-panel border-b border-white/[0.06] gap-2">
+      {/* ── Editor Header Bar — glass panel (Apple §12) with z-20 stacking context ── */}
+      <div className="relative z-20 flex flex-wrap items-center justify-between px-4 py-3 glass-panel border-b border-slate-800/80 gap-2">
         <div className="flex items-center space-x-2">
-          <Code2 className="w-4 h-4 text-indigo-400" />
-          <span className="text-xs font-semibold text-gray-400 uppercase" style={{ letterSpacing: '0.06em' }}>
+          <Code2 className="w-4 h-4 text-slate-400" />
+          <span className="type-caption text-slate-400 font-semibold uppercase tracking-wider">
             Source Code Input
           </span>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2">
           {/* Language Dropdown */}
           <div className="relative" ref={dropdownRef}>
-            {/* Apple §1: respond on pointer-down */}
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               type="button"
-              className="flex items-center justify-between space-x-1.5 bg-white/[0.05] text-xs text-gray-300 border border-white/[0.08] rounded-lg px-3 py-1.5 hover:bg-white/[0.08] focus:outline-none focus:border-indigo-500/60 transition-all duration-150 active:scale-[0.96] cursor-pointer font-mono"
+              className="flex items-center justify-between space-x-1.5 bg-slate-900/80 text-xs text-slate-300 border border-slate-800 rounded-xl px-3 py-1.5 hover:bg-slate-800/80 focus:outline-none focus:border-slate-600 transition-all cursor-pointer font-mono btn-press"
             >
               <span>{selectedLang.label}</span>
               <ChevronDown
-                className="w-3.5 h-3.5 text-gray-500 transition-transform duration-200"
+                className="w-3.5 h-3.5 text-slate-500 transition-transform duration-200"
                 style={{ transform: isDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
               />
             </button>
 
-            {/* Spring dropdown entrance (Apple §4) */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-1.5 w-40 bg-[#111625] border border-white/[0.09] rounded-xl shadow-2xl shadow-black/60 z-50 overflow-hidden py-1 animate-dropdown">
+              <div className="absolute right-0 mt-1.5 w-40 bg-[#121824] border border-slate-700/60 rounded-xl shadow-2xl z-50 overflow-hidden py-1 animate-materialize">
                 {LANGUAGES.map((lang) => (
                   <button
                     key={lang.id}
                     type="button"
                     onClick={() => { setLanguage(lang.id); setIsDropdownOpen(false); }}
-                    className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-all duration-100 active:scale-[0.98] ${
+                    className={`w-full text-left px-3.5 py-1.5 text-xs font-mono transition-all btn-press cursor-pointer ${
                       lang.id === language
-                        ? 'bg-indigo-600/80 text-white'
-                        : 'text-gray-300 hover:bg-white/[0.06]'
+                        ? 'bg-slate-700 text-white font-semibold'
+                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                     }`}
                   >
                     {lang.label}
@@ -213,14 +211,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             )}
           </div>
 
-          {/* Load Demo button — Apple §1 pointer-down */}
+          {/* Load Demo button */}
           <button
             onClick={onLoadDemo}
             type="button"
             title="Reload intentionally vulnerable demo snippet"
-            className="flex items-center space-x-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 bg-indigo-950/40 hover:bg-indigo-950/60 border border-indigo-900/40 rounded-lg px-3 py-1.5 transition-all duration-150 active:scale-[0.95]"
+            className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 rounded-xl px-3 py-1.5 transition-all btn-press"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
             <span className="hidden sm:inline">Load Demo</span>
           </button>
 
@@ -229,7 +227,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             onClick={() => fileInputRef.current?.click()}
             type="button"
             title="Upload code file"
-            className="flex items-center text-xs text-gray-400 hover:text-indigo-400 bg-white/[0.04] hover:bg-indigo-950/30 border border-white/[0.07] hover:border-indigo-900/40 rounded-lg p-1.5 transition-all duration-150 active:scale-[0.90]"
+            className="flex items-center text-xs text-slate-400 hover:text-slate-200 bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 rounded-xl p-1.5 transition-all btn-press"
           >
             <Upload className="w-3.5 h-3.5" />
           </button>
@@ -239,22 +237,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             onClick={() => setCode('')}
             type="button"
             title="Clear editor"
-            className="flex items-center text-xs text-gray-400 hover:text-red-400 bg-white/[0.04] hover:bg-red-950/30 border border-white/[0.07] hover:border-red-900/40 rounded-lg p-1.5 transition-all duration-150 active:scale-[0.90]"
+            className="flex items-center text-xs text-slate-400 hover:text-rose-400 bg-slate-900/80 hover:bg-rose-950/30 border border-slate-800 hover:border-rose-900/40 rounded-xl p-1.5 transition-all btn-press"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* ── Editor Body ── */}
-      <div className="relative flex-1 flex bg-[#090d16]/60 font-mono text-sm overflow-hidden">
+      {/* ── Editor Body — JetBrains Mono typography ── */}
+      <div className="relative flex-1 flex bg-[#0A0E17]/80 font-mono text-xs overflow-hidden">
         {/* Line Numbers Gutter */}
         <div
           ref={lineNumbersRef}
-          className="py-4 select-none bg-transparent border-r border-white/[0.05] text-right pr-3 pl-2 text-gray-700 font-mono text-xs w-12 shrink-0 overflow-hidden"
+          className="py-4 select-none bg-[#090D14]/90 border-r border-slate-800/60 text-right pr-3 pl-2 text-slate-600 font-mono text-xs w-12 shrink-0 overflow-hidden leading-6"
         >
           {lineNumbers.map((num) => (
-            <div key={num} className="leading-6">{num}</div>
+            <div key={num}>{num}</div>
           ))}
         </div>
 
@@ -266,51 +264,53 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           onScroll={handleScroll}
           placeholder="// Paste or drag-and-drop a source code file here to scan for vulnerabilities..."
           spellCheck={false}
-          className="w-full h-full p-4 bg-transparent text-gray-200 resize-none focus:outline-none leading-6 font-mono selection:bg-indigo-950/60 overflow-auto"
+          className="w-full h-full p-4 bg-transparent text-slate-200 resize-none focus:outline-none leading-6 font-mono selection:bg-slate-800 overflow-auto text-xs"
         />
       </div>
 
       {/* ── Editor Footer Action Bar ── */}
-      <div className="px-4 py-3 glass-panel border-t border-white/[0.06] flex items-center justify-between">
+      <div className="px-4 py-3 glass-panel border-t border-slate-800/80 flex items-center justify-between">
         <div className="flex items-center text-xs space-x-2">
           {dragError ? (
             <>
-              <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
-              <span className="text-red-400 font-medium">{dragError}</span>
+              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+              <span className="text-rose-300 font-medium">{dragError}</span>
             </>
           ) : (
             <>
-              <ShieldAlert className="w-4 h-4 text-amber-500/80 shrink-0" />
-              <span className="text-gray-500" style={{ letterSpacing: '0.01em' }}>
+              <ShieldAlert className="w-4 h-4 text-slate-500 shrink-0" />
+              <span className="type-caption text-slate-500 font-normal">
                 Ready to perform static &amp; AI security checks
               </span>
             </>
           )}
         </div>
 
-        {/* Primary Scan Button — Apple §1 instant pointer-down scale */}
+        {/* Primary Scan Code Button */}
         <button
           onClick={onScan}
           type="button"
           disabled={isLoading || !code.trim()}
-          className={`flex items-center space-x-2 px-5 py-2 rounded-xl font-semibold text-sm transition-all duration-150 ${
-            isLoading || !code.trim()
-              ? 'bg-gray-800/60 text-gray-600 cursor-not-allowed border border-white/[0.05]'
-              : 'bg-gradient-to-br from-indigo-500 to-indigo-700 hover:from-indigo-400 hover:to-indigo-600 text-white shadow-lg shadow-indigo-900/40 hover:shadow-indigo-900/60 active:scale-[0.97]'
+          className={`flex items-center space-x-2 px-5 py-2 rounded-xl font-semibold text-xs transition-all btn-press ${
+            isLoading
+              ? 'btn-scanning text-white shadow-lg cursor-wait'
+              : !code.trim()
+              ? 'bg-slate-900 text-slate-600 border border-slate-800 cursor-not-allowed'
+              : 'bg-slate-100 hover:bg-white text-slate-950 shadow-md shadow-slate-900/40 active:scale-[0.97]'
           }`}
         >
           {isLoading ? (
             <>
-              <svg className="animate-spin -ml-1 mr-1 h-4 w-4 text-white/70" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg className="animate-spin -ml-1 mr-1 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
               </svg>
-              <span>Analyzing...</span>
+              <span className="tracking-wide">Analyzing Code...</span>
             </>
           ) : (
             <>
-              <Play className="w-4 h-4 fill-current" />
-              <span>Scan Code</span>
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span className="tracking-wide">Scan Code</span>
             </>
           )}
         </button>
