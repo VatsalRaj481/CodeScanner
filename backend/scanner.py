@@ -3,7 +3,7 @@ import json
 import re
 import uuid
 import google.generativeai as genai
-from models import ScanResponse, Vulnerability
+from models import ScanResponse, Vulnerability, FileScanResult
 
 SYSTEM_PROMPT = """You are an expert Application Security (AppSec) Senior Auditor and Code Scanner.
 Your task is to analyze the provided source code for security vulnerabilities, bad practices, hardcoded secrets, injection flaws, weak cryptography, and unsafe system operations.
@@ -171,3 +171,63 @@ def analyze_code(code: str, language: str) -> ScanResponse:
         if not res.vulnerabilities:
             res.error = f"AI analysis notice: {str(e)}"
         return res
+
+def analyze_batch(files: list) -> ScanResponse:
+    """
+    Analyzes a batch of source files and aggregates findings.
+    
+    Weighted Average Score Calculation Rationale:
+    We compute the overall risk score as a weighted average where each file's score is weighted
+    by its lines of code (LOC). A weighted average by LOC prevents a small 2-line clean utility 
+    file from skewing or masking severe vulnerabilities in a major core codebase module, while accurately 
+    reflecting the overall security posture of the full repository/batch.
+    """
+    file_results = []
+    all_vulns = []
+    total_loc = 0
+    weighted_score_sum = 0
+
+    severity_rank = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0, "secure": 0}
+    worst_rank = 0
+
+    for file_item in files:
+        filename = getattr(file_item, "filename", "unnamed_file")
+        code = getattr(file_item, "code", "")
+        language = getattr(file_item, "language", "auto")
+
+        # Reuse existing analyze_code function per file
+        res = analyze_code(code, language)
+        
+        # Tag each vulnerability with its source filename
+        for v in res.vulnerabilities:
+            v.filename = filename
+            all_vulns.append(v)
+
+        loc = max(1, len(code.splitlines()))
+        total_loc += loc
+        weighted_score_sum += res.score * loc
+
+        rank = severity_rank.get(res.risk_level.lower(), 0)
+        if rank > worst_rank:
+            worst_rank = rank
+
+        file_results.append(FileScanResult(
+            filename=filename,
+            score=res.score,
+            risk_level=res.risk_level,
+            vulnerabilities=res.vulnerabilities
+        ))
+
+    overall_score = round(weighted_score_sum / total_loc) if total_loc > 0 else 100
+    
+    rank_to_level = {4: "critical", 3: "high", 2: "medium", 1: "low", 0: "secure"}
+    overall_risk_level = rank_to_level.get(worst_rank, "secure")
+
+    return ScanResponse(
+        score=overall_score,
+        risk_level=overall_risk_level,
+        vulnerabilities=all_vulns,
+        total_files=len(files),
+        file_results=file_results
+    )
+

@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from models import ScanRequest, ScanResponse
-from scanner import analyze_code
+from models import ScanRequest, ScanResponse, BatchScanRequest
+from scanner import analyze_code, analyze_batch
 
 app = FastAPI(
     title="AI Security Scanner API",
@@ -38,6 +38,18 @@ def scan_code(request: ScanRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal scanning error: {str(e)}")
 
+@app.post("/api/scan-batch", response_model=ScanResponse)
+def scan_batch(request: BatchScanRequest):
+    if not request.files:
+        raise HTTPException(status_code=400, detail="File list cannot be empty.")
+    
+    try:
+        result = analyze_batch(request.files)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Batch scanning error: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+

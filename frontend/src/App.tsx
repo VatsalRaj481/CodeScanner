@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ScanResults } from './components/ScanResults';
-import { scanCodeApi, ScanResponse } from './api/scanner';
+import { scanCodeApi, scanBatchCodeApi, ScanResponse, FileItem } from './api/scanner';
 import { ExternalLink, Terminal } from 'lucide-react';
 
 const DEMO_CODE = `import sqlite3, os, hashlib
@@ -24,6 +24,7 @@ def weak_hash(password):
 export const App: React.FC = () => {
   const [code, setCode] = useState<string>(DEMO_CODE);
   const [language, setLanguage] = useState<string>('python');
+  const [batchFiles, setBatchFiles] = useState<FileItem[]>([]);
   const [results, setResults] = useState<ScanResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,13 +50,21 @@ export const App: React.FC = () => {
   }, []);
 
   const handleScan = async () => {
-    if (!code.trim()) return;
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await scanCodeApi(code, language);
-      setResults(response);
+      if (batchFiles.length > 0) {
+        const response = await scanBatchCodeApi(batchFiles);
+        setResults(response);
+      } else {
+        if (!code.trim()) {
+          setIsLoading(false);
+          return;
+        }
+        const response = await scanCodeApi(code, language);
+        setResults(response);
+      }
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred during analysis.');
     } finally {
@@ -66,6 +75,7 @@ export const App: React.FC = () => {
   const handleLoadDemo = () => {
     setCode(DEMO_CODE);
     setLanguage('python');
+    setBatchFiles([]);
   };
 
   return (
@@ -125,6 +135,8 @@ export const App: React.FC = () => {
               setCode={setCode}
               language={language}
               setLanguage={setLanguage}
+              batchFiles={batchFiles}
+              setBatchFiles={setBatchFiles}
               onScan={handleScan}
               onLoadDemo={handleLoadDemo}
               isLoading={isLoading}

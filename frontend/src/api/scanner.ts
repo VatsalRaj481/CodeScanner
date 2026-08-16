@@ -9,6 +9,20 @@ export interface Vulnerability {
   fix_code: string;
   fix_explanation: string;
   cwe_id: string;
+  filename?: string;
+}
+
+export interface FileItem {
+  filename: string;
+  code: string;
+  language: string;
+}
+
+export interface FileScanResult {
+  filename: string;
+  score: number;
+  risk_level: 'critical' | 'high' | 'medium' | 'low' | 'secure';
+  vulnerabilities: Vulnerability[];
 }
 
 export interface ScanResponse {
@@ -16,6 +30,8 @@ export interface ScanResponse {
   risk_level: 'critical' | 'high' | 'medium' | 'low' | 'secure';
   vulnerabilities: Vulnerability[];
   error?: string;
+  total_files?: number;
+  file_results?: FileScanResult[];
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -27,6 +43,23 @@ export async function scanCodeApi(code: string, language: string): Promise<ScanR
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ code, language }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Network request failed' }));
+    throw new Error(errorData.detail || `Server returned status ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function scanBatchCodeApi(files: FileItem[]): Promise<ScanResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/scan-batch`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ files }),
   });
 
   if (!response.ok) {

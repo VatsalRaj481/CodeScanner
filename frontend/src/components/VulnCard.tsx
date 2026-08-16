@@ -44,6 +44,12 @@ export const VulnCard: React.FC<VulnCardProps> = ({ vulnerability }) => {
             <span className="text-[10px] font-mono bg-slate-900/90 text-slate-300 px-2 py-0.5 rounded-md border border-slate-800">
               {vulnerability.cwe_id}
             </span>
+            {vulnerability.filename && (
+              <span className="text-[10px] font-mono bg-slate-900/90 text-emerald-300 px-2 py-0.5 rounded-md border border-emerald-800/40 flex items-center gap-1">
+                <FileCode className="w-2.5 h-2.5 text-emerald-400" />
+                {vulnerability.filename}
+              </span>
+            )}
             <span className="type-caption text-slate-400 flex items-center gap-1 bg-slate-900/60 px-2 py-0.5 rounded-md border border-slate-800/60 font-normal">
               <Tag className="w-2.5 h-2.5" />
               {vulnerability.category}

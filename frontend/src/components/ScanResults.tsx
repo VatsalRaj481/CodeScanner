@@ -105,6 +105,16 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     );
   };
 
+  // State for expanded file accordions in batch mode
+  const [expandedFiles, setExpandedFiles] = useState<Record<string, boolean>>({});
+
+  const toggleFileAccordion = (filename: string) => {
+    setExpandedFiles((prev) => ({
+      ...prev,
+      [filename]: prev[filename] !== undefined ? !prev[filename] : false, // default true, so toggle flips to false
+    }));
+  };
+
   // Generate Markdown report summary
   const generateMarkdownReport = (res: ScanResponse) => {
     const vList = res.vulnerabilities || [];
@@ -118,6 +128,9 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     let md = `# 🛡️ AI Security Scanner Audit Report\n\n`;
     md += `**Overall Security Score:** ${res.score}/100\n`;
     md += `**Risk Level:** ${res.risk_level.toUpperCase()}\n`;
+    if (res.total_files) {
+      md += `**Total Files Scanned:** ${res.total_files}\n`;
+    }
     md += `**Total Vulnerabilities Flagged:** ${vList.length}\n\n`;
 
     md += `## Severity Summary\n`;
@@ -126,23 +139,39 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     md += `- **Medium:** ${counts.medium}\n`;
     md += `- **Low / Info:** ${counts.low}\n\n`;
 
-    md += `## Vulnerability Findings\n\n`;
-
-    if (vList.length === 0) {
-      md += `*No vulnerabilities identified in this audit.*\n`;
-    } else {
-      vList.forEach((v, idx) => {
-        md += `### ${idx + 1}. [${v.severity.toUpperCase()}] ${v.title}\n`;
-        md += `- **CWE ID:** ${v.cwe_id}\n`;
-        md += `- **Category:** ${v.category}\n`;
-        if (v.line_numbers && v.line_numbers.length > 0) {
-          md += `- **Line Numbers:** Line ${v.line_numbers.join(', ')}\n`;
+    if (res.file_results && res.file_results.length > 0) {
+      md += `## Per-File Breakdown\n\n`;
+      res.file_results.forEach((fr) => {
+        md += `### 📄 ${fr.filename} (Score: ${fr.score}/100, Risk: ${fr.risk_level.toUpperCase()})\n`;
+        if (fr.vulnerabilities.length === 0) {
+          md += `*No security issues identified in this file.*\n\n`;
+        } else {
+          fr.vulnerabilities.forEach((v, idx) => {
+            md += `#### ${idx + 1}. [${v.severity.toUpperCase()}] ${v.title} (${v.cwe_id})\n`;
+            md += `- **Description:** ${v.description}\n`;
+            md += `- **Why it's risky:** ${v.why_risky}\n`;
+            md += `- **Fix:** ${v.fix_explanation}\n\n`;
+          });
         }
-        md += `- **Description:** ${v.description}\n`;
-        md += `- **Why it's risky:** ${v.why_risky}\n`;
-        md += `- **Recommended Fix Explanation:** ${v.fix_explanation}\n\n`;
-        md += `\`\`\`code\n${v.fix_code}\n\`\`\`\n\n`;
       });
+    } else {
+      md += `## Detailed Findings\n\n`;
+      if (vList.length === 0) {
+        md += `*No vulnerabilities identified in this audit.*\n`;
+      } else {
+        vList.forEach((v, idx) => {
+          md += `### ${idx + 1}. [${v.severity.toUpperCase()}] ${v.title}\n`;
+          md += `- **CWE ID:** ${v.cwe_id}\n`;
+          md += `- **Category:** ${v.category}\n`;
+          if (v.line_numbers && v.line_numbers.length > 0) {
+            md += `- **Line Numbers:** Line ${v.line_numbers.join(', ')}\n`;
+          }
+          md += `- **Description:** ${v.description}\n`;
+          md += `- **Why it's risky:** ${v.why_risky}\n`;
+          md += `- **Recommended Fix Explanation:** ${v.fix_explanation}\n\n`;
+          md += `\`\`\`code\n${v.fix_code}\n\`\`\`\n\n`;
+        });
+      }
     }
 
     return md;
@@ -177,23 +206,24 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     const doc = new jsPDF();
     let y = 15;
 
-    // Header
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.text('AI Security Scanner Audit Report', 14, y);
     y += 10;
 
-    // Summary metadata
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Overall Security Score: ${results.score}/100`, 14, y);
     y += 6;
     doc.text(`Risk Level: ${results.risk_level.toUpperCase()}`, 14, y);
     y += 6;
+    if (results.total_files) {
+      doc.text(`Total Files Scanned: ${results.total_files}`, 14, y);
+      y += 6;
+    }
     doc.text(`Total Vulnerabilities: ${results.vulnerabilities?.length || 0}`, 14, y);
     y += 10;
 
-    // Findings section
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('Vulnerability Findings:', 14, y);
@@ -207,7 +237,8 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
       }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
-      doc.text(`${idx + 1}. [${v.severity.toUpperCase()}] ${v.title} (${v.cwe_id})`, 14, y);
+      const prefix = v.filename ? `[${v.filename}] ` : '';
+      doc.text(`${idx + 1}. ${prefix}[${v.severity.toUpperCase()}] ${v.title} (${v.cwe_id})`, 14, y);
       y += 6;
 
       doc.setFont('helvetica', 'normal');
@@ -242,7 +273,6 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
         {/* Toolbar: Copy Report & Export Buttons (only when results exist) */}
         {results && (
           <div className="flex items-center space-x-2">
-            {/* Copy Report Button */}
             <button
               onClick={handleCopyReport}
               type="button"
@@ -262,7 +292,6 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
               )}
             </button>
 
-            {/* Export Dropdown */}
             <div className="relative" ref={exportDropdownRef}>
               <button
                 onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
@@ -344,7 +373,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
               Ready for Security Audit
             </h3>
             <p className="type-body text-slate-400 max-w-xs leading-relaxed">
-              Paste source code snippet or click below to load our intentionally vulnerable demo script.
+              Paste source code snippet, drag-and-drop multiple files, or upload a .zip archive.
             </p>
           </div>
           <button
@@ -385,17 +414,16 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
 
   const scoreTheme = getScoreTheme(results.score);
   
-  // Radius r=52 → circumference = 2 * PI * 52 ≈ 326.726
   const CIRC = 326.726;
   const strokeDashoffset = CIRC - (CIRC * Math.max(0, Math.min(100, animatedScore))) / 100;
 
   return (
-    <PanelWrapper headerTitle="Audit Report">
+    <PanelWrapper headerTitle={results.file_results ? `Batch Audit Report (${results.file_results.length} Files)` : 'Audit Report'}>
       {/* ── Score + summary card ── */}
       <div className="card-elevated rounded-2xl p-5 space-y-5 animate-fade-up">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-5 pb-5 border-b border-slate-800/80">
           
-          {/* Enlarged Emotional Focal Point Risk Score Gauge */}
+          {/* Risk Score Gauge */}
           <div className="flex items-center space-x-6">
             <div className="relative w-28 h-28 flex items-center justify-center shrink-0">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
@@ -406,11 +434,8 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                     <stop offset="100%" stopColor="#F87171" />
                   </linearGradient>
                 </defs>
-                {/* Outer Glow Ring */}
                 <circle cx="60" cy="60" r="52" fill="transparent" stroke={scoreTheme.ring} strokeWidth="12" />
-                {/* Track */}
                 <circle cx="60" cy="60" r="52" fill="transparent" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-                {/* Dynamic Gradient Progress Stroke */}
                 <circle
                   cx="60" cy="60" r="52"
                   fill="transparent"
@@ -421,7 +446,6 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                   strokeLinecap="round"
                 />
               </svg>
-              {/* Display Score tabular numbers */}
               <div className="absolute flex flex-col items-center justify-center">
                 <span className={`text-2xl font-bold num ${scoreTheme.text}`} style={{ letterSpacing: '-0.02em', lineHeight: 1 }}>
                   {Math.round(animatedScore)}
@@ -450,9 +474,13 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                   : 'Critical Risk Detected'}
               </h2>
               <p className="type-body text-slate-400">
-                {vulns.length === 0
-                  ? 'No critical vulnerabilities found in scanned code.'
-                  : `Audit completed — ${vulns.length} issue(s) flagged.`}
+                {results.total_files ? (
+                  `Batch audit completed across ${results.total_files} files — ${vulns.length} total issue(s) flagged.`
+                ) : vulns.length === 0 ? (
+                  'No critical vulnerabilities found in scanned code.'
+                ) : (
+                  `Audit completed — ${vulns.length} issue(s) flagged.`
+                )}
               </p>
             </div>
           </div>
@@ -489,66 +517,133 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
         </div>
       </div>
 
-      {/* ── Vulnerability Cards List ── */}
-      <div className="space-y-3 pt-1">
-        <h3 className="type-caption text-slate-500 uppercase font-semibold flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span>Vulnerability Findings</span>
-            {selectedSeverities.length > 0 && (
-              <span className="text-[10px] font-mono text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full lowercase">
-                filters: {selectedSeverities.join(', ')}
+      {/* ── Per-File Breakdown (Batch Mode) vs Single Findings List ── */}
+      {results.file_results && results.file_results.length > 0 ? (
+        <div className="space-y-4 pt-1">
+          <h3 className="type-caption text-slate-500 uppercase font-semibold flex items-center justify-between">
+            <span>Per-File Breakdown ({results.file_results.length} Files)</span>
+            <span className="font-mono text-slate-400 font-normal">
+              Total Issues: {vulns.length}
+            </span>
+          </h3>
+
+          {results.file_results.map((fr) => {
+            const isExpanded = expandedFiles[fr.filename] !== false; // default open
+            const fileVulns = fr.vulnerabilities.filter((v) => {
+              if (selectedSeverities.length === 0) return true;
+              const s = v.severity.toLowerCase();
+              return selectedSeverities.includes(s) || (selectedSeverities.includes('low') && s === 'info');
+            });
+            const fileScoreTheme = getScoreTheme(fr.score);
+
+            return (
+              <div key={fr.filename} className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-900/60">
+                {/* File Accordion Header */}
+                <button
+                  type="button"
+                  onClick={() => toggleFileAccordion(fr.filename)}
+                  className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/80 hover:bg-slate-800/60 border-b border-slate-800/60 transition-all cursor-pointer btn-press"
+                >
+                  <div className="flex items-center space-x-3">
+                    <Code className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-mono font-semibold text-slate-200">{fr.filename}</span>
+                    <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${fileScoreTheme.bg} ${fileScoreTheme.text}`}>
+                      Score: {fr.score} ({fr.risk_level.toUpperCase()})
+                    </span>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+                      {fr.vulnerabilities.length} issue(s)
+                    </span>
+                    {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400 rotate-180 transition-transform" /> : <ChevronDown className="w-4 h-4 text-slate-400 transition-transform" />}
+                  </div>
+                </button>
+
+                {/* File Accordion Body */}
+                {isExpanded && (
+                  <div className="p-4 space-y-3 bg-[#0A0E17]/40">
+                    {fr.vulnerabilities.length === 0 ? (
+                      <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-xl p-3 text-center text-xs text-emerald-300 font-mono">
+                        ✓ No security vulnerabilities detected in {fr.filename}
+                      </div>
+                    ) : fileVulns.length === 0 ? (
+                      <div className="text-xs text-slate-400 text-center py-2 font-mono">
+                        No issues in this file match active severity filter.
+                      </div>
+                    ) : (
+                      fileVulns.map((vuln) => (
+                        <VulnCard key={vuln.id} vulnerability={vuln} />
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* Single File Findings List */
+        <div className="space-y-3 pt-1">
+          <h3 className="type-caption text-slate-500 uppercase font-semibold flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span>Vulnerability Findings</span>
+              {selectedSeverities.length > 0 && (
+                <span className="text-[10px] font-mono text-slate-300 bg-slate-800 px-2 py-0.5 rounded-full lowercase">
+                  filters: {selectedSeverities.join(', ')}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-3 font-mono text-slate-400 font-normal">
+              {selectedSeverities.length > 0 && (
+                <button
+                  onClick={() => setSelectedSeverities([])}
+                  className="type-caption text-slate-400 hover:text-white underline font-sans cursor-pointer"
+                >
+                  Clear filters
+                </button>
+              )}
+              <span>
+                Showing {filteredVulns.length} of {vulns.length}
               </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-3 font-mono text-slate-400 font-normal">
-            {selectedSeverities.length > 0 && (
+            </div>
+          </h3>
+
+          {vulns.length === 0 ? (
+            <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
+              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" style={{ filter: 'drop-shadow(0 0 10px rgba(52,211,153,0.3))' }} />
+              <h4 className="type-title text-emerald-300">
+                Clean Bill of Health
+              </h4>
+              <p className="type-body text-slate-400 max-w-xs mx-auto leading-relaxed">
+                No known security flaws, injection points, or hardcoded secrets were detected in this code snippet.
+              </p>
+            </div>
+          ) : filteredVulns.length === 0 ? (
+            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
+              <p className="type-body text-slate-400">
+                No vulnerabilities matching active filters ({selectedSeverities.join(', ')}).
+              </p>
               <button
                 onClick={() => setSelectedSeverities([])}
-                className="type-caption text-slate-400 hover:text-white underline font-sans cursor-pointer"
+                className="type-caption text-slate-300 underline hover:text-white cursor-pointer"
               >
-                Clear filters
+                Clear all filters
               </button>
-            )}
-            <span>
-              Showing {filteredVulns.length} of {vulns.length}
-            </span>
-          </div>
-        </h3>
-
-        {vulns.length === 0 ? (
-          <div className="bg-emerald-950/20 border border-emerald-800/30 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
-            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" style={{ filter: 'drop-shadow(0 0 10px rgba(52,211,153,0.3))' }} />
-            <h4 className="type-title text-emerald-300">
-              Clean Bill of Health
-            </h4>
-            <p className="type-body text-slate-400 max-w-xs mx-auto leading-relaxed">
-              No known security flaws, injection points, or hardcoded secrets were detected in this code snippet.
-            </p>
-          </div>
-        ) : filteredVulns.length === 0 ? (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 text-center space-y-2 animate-fade-up">
-            <p className="type-body text-slate-400">
-              No vulnerabilities matching active filters ({selectedSeverities.join(', ')}).
-            </p>
-            <button
-              onClick={() => setSelectedSeverities([])}
-              className="type-caption text-slate-300 underline hover:text-white cursor-pointer"
-            >
-              Clear all filters
-            </button>
-          </div>
-        ) : (
-          filteredVulns.map((vuln, i) => (
-            <div
-              key={vuln.id}
-              className="animate-materialize"
-              style={{ animationDelay: `${i * 50}ms` }}
-            >
-              <VulnCard vulnerability={vuln} />
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            filteredVulns.map((vuln, i) => (
+              <div
+                key={vuln.id}
+                className="animate-materialize"
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                <VulnCard vulnerability={vuln} />
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </PanelWrapper>
   );
 };
