@@ -86,10 +86,12 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
       velocity += accel * dt;
       current += velocity * dt;
 
-      if (Math.abs(current - target) < 0.05 && Math.abs(velocity) < 0.05) {
+      const rounded = Math.round(current);
+
+      if (Math.abs(current - target) < 0.5 && Math.abs(velocity) < 0.5) {
         setAnimatedScore(target);
       } else {
-        setAnimatedScore(current);
+        setAnimatedScore((prev) => (prev !== rounded ? rounded : prev));
         animationFrameId = requestAnimationFrame(step);
       }
     };
@@ -446,8 +448,8 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                   strokeLinecap="round"
                 />
               </svg>
-              <div className="absolute flex flex-col items-center justify-center">
-                <span className={`text-2xl font-bold num ${scoreTheme.text}`} style={{ letterSpacing: '-0.02em', lineHeight: 1 }}>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                <span className={`text-2xl font-bold font-mono ${scoreTheme.text}`} style={{ letterSpacing: '-0.02em', lineHeight: 1 }}>
                   {Math.round(animatedScore)}
                 </span>
                 <span className="type-caption text-slate-500 font-semibold uppercase mt-1">
