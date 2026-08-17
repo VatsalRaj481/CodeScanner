@@ -398,7 +398,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
         </div>
       ) : !results ? (
         /* Case 3: Empty state */
-        <div className="flex flex-col items-center justify-center h-full min-h-[350px] text-center space-y-4 py-8 animate-fade-up">
+        <div className="flex-1 flex flex-col items-center justify-center h-full min-h-[400px] text-center space-y-4 py-12 my-auto animate-fade-up">
           <div className="w-14 h-14 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-center text-slate-300 shadow-lg shadow-black/40">
             <Code className="w-7 h-7" />
           </div>

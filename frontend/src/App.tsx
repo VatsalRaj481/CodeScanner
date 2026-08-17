@@ -178,16 +178,19 @@ export const App: React.FC = () => {
           <div className="flex items-center space-x-3">
             {/* History Toggle Button */}
             <button
-              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              onClick={() => history.length > 0 && setIsHistoryOpen(!isHistoryOpen)}
               type="button"
-              className={`flex items-center space-x-1.5 text-xs font-medium border px-3 py-1.5 rounded-xl transition-all btn-press cursor-pointer ${
-                isHistoryOpen
-                  ? 'bg-slate-700 text-white border-slate-500 shadow-md'
-                  : 'text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border-slate-700/60'
+              disabled={history.length === 0}
+              className={`flex items-center space-x-1.5 text-xs font-medium border px-3 py-1.5 rounded-xl transition-all btn-press ${
+                history.length === 0
+                  ? 'opacity-50 text-slate-500 border-slate-800 bg-slate-900/40 cursor-not-allowed'
+                  : isHistoryOpen
+                  ? 'bg-slate-700 text-white border-slate-500 shadow-md cursor-pointer'
+                  : 'text-slate-300 hover:text-slate-100 bg-slate-900/60 hover:bg-slate-800/80 border-slate-700/60 cursor-pointer'
               }`}
             >
               <History className="w-3.5 h-3.5 text-slate-400" />
-              <span>History ({history.length})</span>
+              <span>History{history.length > 0 ? ` (${history.length})` : ''}</span>
             </button>
 
             {/* Secondary / Ghost button style for Get Gemini API Key */}
