@@ -3,6 +3,8 @@ import { Play, RotateCcw, Trash2, Code2, ShieldAlert, ChevronDown, Upload, FileC
 import JSZip from 'jszip';
 import { FileItem } from '../api/scanner';
 
+import { getDemoSnippet, isDemoCode } from '../demoSnippets';
+
 interface CodeEditorProps {
   code: string;
   setCode: (code: string) => void;
@@ -63,6 +65,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
+
+  const handleSelectLanguage = (newLangId: string) => {
+    setIsDropdownOpen(false);
+    setLanguage(newLangId);
+    if (isDemoCode(code)) {
+      setCode(getDemoSnippet(newLangId));
+    }
+  };
 
   const lineCount = Math.max(1, code.split('\n').length);
   const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1);
@@ -298,7 +308,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <button
                       key={lang.id}
                       type="button"
-                      onClick={() => { setLanguage(lang.id); setIsDropdownOpen(false); }}
+                      onClick={() => handleSelectLanguage(lang.id)}
                       className={`w-full text-left px-3.5 py-1.5 text-xs font-mono transition-all btn-press cursor-pointer ${
                         lang.id === language
                           ? 'bg-slate-700 text-white font-semibold'

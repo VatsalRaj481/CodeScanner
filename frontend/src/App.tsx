@@ -5,25 +5,10 @@ import { ScanHistoryPanel, ScanHistoryItem } from './components/ScanHistoryPanel
 import { scanCodeApi, scanBatchCodeApi, ScanResponse, FileItem } from './api/scanner';
 import { ExternalLink, Terminal, History } from 'lucide-react';
 
-const DEMO_CODE = `import sqlite3, os, hashlib
-
-DB_PASS = "admin123"
-SECRET = "jwt_secret_hardcoded"
-
-def get_user(username):
-    conn = sqlite3.connect("app.db")
-    cur = conn.cursor()
-    cur.execute(f"SELECT * FROM users WHERE name = '{username}'")
-    return cur.fetchone()
-
-def run_cmd(user_input):
-    os.system("ping " + user_input)
-
-def weak_hash(password):
-    return hashlib.md5(password.encode()).hexdigest()`;
+import { getDemoSnippet } from './demoSnippets';
 
 export const App: React.FC = () => {
-  const [code, setCode] = useState<string>(DEMO_CODE);
+  const [code, setCode] = useState<string>(getDemoSnippet('python'));
   const [language, setLanguage] = useState<string>('python');
   const [batchFiles, setBatchFiles] = useState<FileItem[]>([]);
   const [results, setResults] = useState<ScanResponse | null>(null);
@@ -137,8 +122,8 @@ export const App: React.FC = () => {
   };
 
   const handleLoadDemo = () => {
-    setCode(DEMO_CODE);
-    setLanguage('python');
+    const targetLang = language === 'auto' ? 'python' : language;
+    setCode(getDemoSnippet(targetLang));
     setBatchFiles([]);
   };
 
