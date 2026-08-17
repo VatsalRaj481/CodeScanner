@@ -57,7 +57,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Critically damped spring physics loop for Risk Score ring animation
+  // Smooth ease-out animation for Risk Score ring
   useEffect(() => {
     if (animFrameRef.current !== null) {
       cancelAnimationFrame(animFrameRef.current);
@@ -73,34 +73,19 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
     const rawTarget = Number(results.score);
     const target = isNaN(rawTarget) ? 0 : Math.min(100, Math.max(0, Math.round(rawTarget)));
 
-    let current = currentScoreRef.current;
-    let velocity = 0;
-    let lastTime = performance.now();
+    const step = () => {
+      const current = currentScoreRef.current;
+      const diff = target - current;
 
-    const response = 0.4;
-    const omega = (2 * Math.PI) / response;
-    const k = omega * omega;
-    const c = 2 * omega;
-
-    const step = (now: number) => {
-      const delta = typeof now === 'number' && !isNaN(now) ? now - lastTime : 16.6;
-      const dt = Math.min(Math.max(delta / 1000, 0.001), 0.064);
-      lastTime = now;
-
-      const x = current - target;
-      const accel = -k * x - c * velocity;
-      velocity += accel * dt;
-      current += velocity * dt;
-
-      const clampedVal = Math.min(100, Math.max(0, Math.round(current)));
-      currentScoreRef.current = current;
-
-      if (Math.abs(current - target) < 0.5 && Math.abs(velocity) < 0.5) {
+      if (Math.abs(diff) < 0.4) {
         currentScoreRef.current = target;
         setAnimatedScore(target);
         animFrameRef.current = null;
       } else {
-        setAnimatedScore((prev) => (prev !== clampedVal ? clampedVal : prev));
+        const next = current + diff * 0.15;
+        currentScoreRef.current = next;
+        const clampedVal = Math.min(100, Math.max(0, Math.round(next)));
+        setAnimatedScore(clampedVal);
         animFrameRef.current = requestAnimationFrame(step);
       }
     };
@@ -474,7 +459,7 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
                         <circle
                           cx="60" cy="60" r="52"
                           fill="transparent"
-                          stroke="url(#scoreGaugeGradient)"
+                          stroke={scoreTheme.stroke}
                           strokeWidth="8"
                           strokeDasharray={CIRC}
                           strokeDashoffset={strokeDashoffset}
