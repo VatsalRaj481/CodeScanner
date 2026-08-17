@@ -49,7 +49,11 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
     
     # Check for multi-language security vulnerability patterns
     for idx, line in enumerate(lines, 1):
-        if re.search(r'(?:DB_PASS|SECRET|JWT_SECRET|API_KEY|PASSWORD)\s*[:=]\s*["\']', line, re.I) or "admin123" in line or "jwt_secret_hardcoded" in line:
+        line_str = line.strip()
+        line_upper = line_str.upper()
+
+        # 1. Hardcoded Credentials (CWE-798)
+        if any(keyword in line_upper for keyword in ["DB_PASS", "SECRET", "ADMIN123", "JWT_SECRET"]):
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="high",
@@ -64,7 +68,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if re.search(r'SELECT\s+.*?\s+FROM\s+\w+\s+WHERE\s+.*?[\'\"]\s*[\+\.\,\$]', line, re.I) or re.search(r'SELECT \* FROM users WHERE name =', line, re.I) or "execute(f\"SELECT" in line or "execute(\"SELECT" in line or "EXEC('SELECT" in line.upper() or "Sprintf(\"SELECT" in line:
+
+        # 2. SQL Injection (CWE-89)
+        if "SELECT" in line_upper and ("WHERE" in line_upper or "FROM" in line_upper):
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="critical",
@@ -79,7 +85,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if re.search(r'(?:os\.system|exec|system|Runtime\.getRuntime\(\)\.exec|exec\.Command|xp_cmdshell|eval)\s*[\(\s]', line, re.I) or "ping " in line.lower() or "eval " in line.lower():
+
+        # 3. Command Injection (CWE-78)
+        if any(term in line_str for term in ["os.system", "exec(", "exec `", "system(", "exec.Command", "xp_cmdshell", "eval("]) or "ping" in line_str.lower():
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="critical",
@@ -94,7 +102,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if re.search(r'md5|sha1|hashlib\.md5|hashlib\.sha1|createHash\(["\']md5|createHash\(["\']sha1|MessageDigest\.getInstance\(["\']MD5|md5sum', line, re.I):
+
+        # 4. Weak Cryptography (CWE-327)
+        if any(term in line_str.lower() for term in ["md5", "sha1", "md5sum"]):
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="medium",
