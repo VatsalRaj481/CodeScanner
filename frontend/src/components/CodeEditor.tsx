@@ -323,18 +323,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </div>
           )}
 
-          {/* Conditional ghost Load Demo link when content exists */}
-          {(code.trim().length > 0 || batchFiles.length > 0) && (
-            <button
-              onClick={onLoadDemo}
-              type="button"
-              title="Reload demo code"
-              className="flex items-center space-x-1 text-xs font-mono text-slate-400 hover:text-slate-200 transition-all btn-press cursor-pointer px-1.5 py-1"
-            >
-              <RotateCcw className="w-3 h-3 text-slate-500" />
-              <span>Load Demo</span>
-            </button>
-          )}
+          {/* Load Demo button */}
+          <button
+            onClick={onLoadDemo}
+            type="button"
+            title="Reload intentionally vulnerable demo snippet"
+            className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800/80 border border-slate-800 rounded-xl px-3 py-1.5 transition-all btn-press cursor-pointer"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
+            <span className="hidden sm:inline">Load Demo</span>
+          </button>
 
           {/* Upload button (Single, Multi, or Zip) */}
           <button
@@ -374,7 +372,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                 Drop code file(s) or .zip archive here
               </p>
               <p className="type-caption text-slate-500 font-mono">
-                or click to browse from device / click Load Demo Code on right
+                or click to browse from device / use Load Demo in toolbar
               </p>
             </div>
           </div>

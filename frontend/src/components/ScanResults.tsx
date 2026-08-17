@@ -8,7 +8,6 @@ interface ScanResultsProps {
   results: ScanResponse | null;
   isLoading: boolean;
   error: string | null;
-  onLoadDemo: () => void;
 }
 
 // ── Skeleton loader (Inner panel content only, no duplicate outer frame) ─────
@@ -36,7 +35,7 @@ const ScanResultsSkeleton: React.FC = () => (
 );
 
 // ── Main component ───────────────────────────────────────────────────────────
-export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, error, onLoadDemo }) => {
+export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, error }) => {
   const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
   const [animatedScore, setAnimatedScore] = useState<number>(0);
   const [copiedReport, setCopiedReport] = useState<boolean>(false);
@@ -405,16 +404,9 @@ export const ScanResults: React.FC<ScanResultsProps> = ({ results, isLoading, er
           <div className="space-y-1.5">
             <h3 className="type-title text-slate-200">Ready for Security Audit</h3>
             <p className="type-body text-slate-400 max-w-xs leading-relaxed">
-              Paste source code snippet, drag-and-drop multiple files, or upload a .zip archive.
+              Paste source code snippet, drag-and-drop multiple files, or upload a .zip archive to begin auditing.
             </p>
           </div>
-          <button
-            onClick={onLoadDemo}
-            type="button"
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-semibold shadow-md transition-all btn-press cursor-pointer"
-          >
-            Load Demo Code
-          </button>
         </div>
       ) : (
         /* Case 4: Results state */

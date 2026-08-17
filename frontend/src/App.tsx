@@ -236,7 +236,7 @@ export const App: React.FC = () => {
                 onClose={() => setIsHistoryOpen(false)}
               />
             ) : (
-              <ScanResults results={results} isLoading={isLoading} error={error} onLoadDemo={handleLoadDemo} />
+              <ScanResults results={results} isLoading={isLoading} error={error} />
             )}
           </div>
         </div>
