@@ -216,8 +216,10 @@ export const getDemoSnippet = (language: string): string => {
 };
 
 export const isDemoCode = (currentCode: string): boolean => {
-  if (!currentCode) return false;
-  const trimmed = currentCode.trim();
-  if (!trimmed) return false;
-  return Object.values(DEMO_SNIPPETS).some((snippet) => snippet.trim() === trimmed);
+  if (!currentCode) return true;
+  const normalizedCurrent = currentCode.replace(/\r\n/g, '\n').trim();
+  if (!normalizedCurrent) return true;
+  return Object.values(DEMO_SNIPPETS).some(
+    (snippet) => snippet.replace(/\r\n/g, '\n').trim() === normalizedCurrent
+  );
 };
