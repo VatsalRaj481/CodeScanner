@@ -8,7 +8,9 @@ import { ExternalLink, Terminal, History } from 'lucide-react';
 import { getDemoSnippet } from './demoSnippets';
 
 export const App: React.FC = () => {
-  const [code, setCode] = useState<string>(getDemoSnippet('python'));
+  const initialDemo = getDemoSnippet('python');
+  const [code, setCode] = useState<string>(initialDemo);
+  const [lastLoadedDemo, setLastLoadedDemo] = useState<string>(initialDemo);
   const [language, setLanguage] = useState<string>('python');
   const [batchFiles, setBatchFiles] = useState<FileItem[]>([]);
   const [results, setResults] = useState<ScanResponse | null>(null);
@@ -123,7 +125,9 @@ export const App: React.FC = () => {
 
   const handleLoadDemo = () => {
     const targetLang = language === 'auto' ? 'python' : language;
-    setCode(getDemoSnippet(targetLang));
+    const demoSnippet = getDemoSnippet(targetLang);
+    setCode(demoSnippet);
+    setLastLoadedDemo(demoSnippet);
     setBatchFiles([]);
   };
 
@@ -148,29 +152,19 @@ export const App: React.FC = () => {
       {/* Background ambient radial glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-gradient-to-b from-slate-800/15 via-slate-900/5 to-transparent blur-3xl pointer-events-none -z-10" />
 
-      {/* ── Top Header Navigation — Glass material (Apple §12) ── */}
-      <header className="glass-header sticky top-0 z-50">
+      {/* ── Top Navigation Header Bar ── */}
+      <header className="sticky top-0 z-40 glass-header border-b border-slate-800/80">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3.5">
-            {/* Shield Logo */}
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 border border-slate-700/60 flex items-center justify-center shadow-md shadow-black/40 shrink-0">
-              <svg className="w-5 h-5 text-slate-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="M9 11l2 2 4-4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-200 shadow-md">
+              <Terminal className="w-5 h-5" />
             </div>
-            <div className="space-y-0.5">
-              <div className="flex items-center space-x-2">
-                <h1 className="type-title text-slate-100 font-semibold leading-tight">
-                  AI Security Scanner
-                </h1>
-                {/* Low-contrast pill v1.0.0 badge immediately after title */}
-                <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded-full border border-slate-700/50">
-                  v1.0.0
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 font-normal leading-tight">
-                Automated static code security and vulnerability auditing
+            <div>
+              <h1 className="type-title text-slate-100 font-bold tracking-tight text-sm sm:text-base">
+                AI Security Scanner
+              </h1>
+              <p className="type-caption text-slate-400 font-medium text-[11px] hidden sm:block">
+                Static Analysis &amp; Remediation Audit Platform
               </p>
             </div>
           </div>
@@ -222,6 +216,8 @@ export const App: React.FC = () => {
               onScan={handleScan}
               onLoadDemo={handleLoadDemo}
               isLoading={isLoading}
+              lastLoadedDemo={lastLoadedDemo}
+              setLastLoadedDemo={setLastLoadedDemo}
             />
           </div>
 

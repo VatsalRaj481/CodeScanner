@@ -15,6 +15,8 @@ interface CodeEditorProps {
   onScan: () => void;
   onLoadDemo: () => void;
   isLoading: boolean;
+  lastLoadedDemo?: string;
+  setLastLoadedDemo?: (demo: string) => void;
 }
 
 const LANGUAGES = [
@@ -56,6 +58,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onScan,
   onLoadDemo,
   isLoading,
+  lastLoadedDemo,
+  setLastLoadedDemo,
 }) => {
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -69,8 +73,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const handleSelectLanguage = (newLangId: string) => {
     setIsDropdownOpen(false);
     setLanguage(newLangId);
-    if (isDemoCode(code)) {
-      setCode(getDemoSnippet(newLangId));
+    if (isDemoCode(code, lastLoadedDemo)) {
+      const nextDemo = getDemoSnippet(newLangId);
+      setCode(nextDemo);
+      if (setLastLoadedDemo) {
+        setLastLoadedDemo(nextDemo);
+      }
     }
   };
 

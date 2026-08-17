@@ -168,11 +168,27 @@ export const getDemoSnippet = (language: string): string => {
   return DEMO_SNIPPETS[langKey] || DEMO_SNIPPETS['python'];
 };
 
-export const isDemoCode = (currentCode: string): boolean => {
+export const normalizeCode = (str: string): string => {
+  if (!str) return '';
+  return str
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+    .trim();
+};
+
+export const isDemoCode = (currentCode: string, lastLoadedDemo?: string): boolean => {
   if (!currentCode) return true;
-  const normalizedCurrent = currentCode.replace(/\r\n/g, '\n').trim();
-  if (!normalizedCurrent) return true;
+  const normCurrent = normalizeCode(currentCode);
+  if (!normCurrent) return true;
+
+  if (lastLoadedDemo && normalizeCode(lastLoadedDemo) === normCurrent) {
+    return true;
+  }
+
   return Object.values(DEMO_SNIPPETS).some(
-    (snippet) => snippet.replace(/\r\n/g, '\n').trim() === normalizedCurrent
+    (snippet) => normalizeCode(snippet) === normCurrent
   );
 };
