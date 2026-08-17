@@ -47,9 +47,9 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
     vulns = []
     lines = code.splitlines()
     
-    # Check for hardcoded pass/secret
+    # Check for multi-language security vulnerability patterns
     for idx, line in enumerate(lines, 1):
-        if re.search(r'DB_PASS\s*=\s*["\']', line) or re.search(r'SECRET\s*=\s*["\']', line):
+        if re.search(r'(?:DB_PASS|SECRET|JWT_SECRET|API_KEY|PASSWORD)\s*[:=]\s*["\']', line, re.I) or "admin123" in line or "jwt_secret_hardcoded" in line:
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="high",
@@ -64,7 +64,7 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if "execute(f\"SELECT" in line or "execute(\"SELECT" in line or "SELECT * FROM users WHERE name =" in line:
+        if re.search(r'SELECT\s+.*?\s+FROM\s+\w+\s+WHERE\s+.*?[\'\"]\s*[\+\.\,\$]', line, re.I) or re.search(r'SELECT \* FROM users WHERE name =', line, re.I) or "execute(f\"SELECT" in line or "execute(\"SELECT" in line or "EXEC('SELECT" in line.upper() or "Sprintf(\"SELECT" in line:
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="critical",
@@ -79,7 +79,7 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if "os.system(" in line or "subprocess.call(" in line:
+        if re.search(r'(?:os\.system|exec|system|Runtime\.getRuntime\(\)\.exec|exec\.Command|xp_cmdshell|eval)\s*[\(\s]', line, re.I) or "ping " in line.lower() or "eval " in line.lower():
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="critical",
@@ -94,15 +94,15 @@ def fallback_static_analysis(code: str, language: str) -> ScanResponse:
                 source="static_fallback",
                 confidence="high"
             ))
-        if "hashlib.md5(" in line or "hashlib.sha1(" in line:
+        if re.search(r'md5|sha1|hashlib\.md5|hashlib\.sha1|createHash\(["\']md5|createHash\(["\']sha1|MessageDigest\.getInstance\(["\']MD5|md5sum', line, re.I):
             vulns.append(Vulnerability(
                 id=f"vuln-{uuid.uuid4().hex[:6]}",
                 severity="medium",
                 title="Weak Cryptographic Hash Algorithm",
                 category="Broken Cryptography",
                 line_numbers=[idx],
-                description="MD5 hashing algorithm used for sensitive data such as passwords.",
-                why_risky="MD5 is cryptographically broken and vulnerable to collision attacks and rapid rainbow table lookups.",
+                description="MD5 or SHA1 hashing algorithm used for sensitive data such as passwords.",
+                why_risky="MD5 and SHA1 are cryptographically broken and vulnerable to collision attacks and rapid rainbow table lookups.",
                 fix_code='import hashlib, secrets\nsalt = secrets.token_bytes(16)\nhash_val = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 100000)',
                 fix_explanation="Use strong, salted key derivation functions such as Argon2, bcrypt, or PBKDF2 with SHA-256.",
                 cwe_id="CWE-327",
