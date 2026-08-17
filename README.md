@@ -84,7 +84,7 @@ $$\text{Risk Level} = \max(\text{File Risk Levels}) \quad \text{where } \text{CR
 ### 1. Multi-Language Support & Smart Demo Engine
 - **8 Supported Languages**: Full syntax and vulnerability scanning support for **Python**, **JavaScript**, **TypeScript**, **PHP**, **Java**, **Go**, **SQL**, and **Bash**.
 - **Idiomatic Vulnerability Demo Snippets**: Pre-loaded demo code templates for all 8 languages, each containing 4 real-world CWE-mappable vulnerability patterns (evaluating to a consistent score of 12 for easy testing).
-- **Smart Non-Destructive Demo Swap**: Changing the language dropdown automatically updates the editor content to that language's demo snippet **only if** the editor currently contains an unmodified demo. If you type or edit custom code, changing the dropdown updates the language detection context while keeping your custom code untouched.
+- **Smart Non-Destructive Demo Swap**: Consolidated **Load Demo** button in the source panel toolbar allows instant 1-click loading across all 8 languages. Changing the language dropdown automatically updates the editor content to that language's demo snippet **only if** the editor currently contains an unmodified demo. If you type or edit custom code, changing the dropdown updates the language detection context while keeping your custom code untouched.
 
 ### 2. Smooth & Persistent UI (Zero-Flicker Architecture)
 - **Persistent Panel Shell**: The Audit Report panel shell, header bar, and export toolbar remain mounted during scanning, eliminating unmount/remount flickering.
