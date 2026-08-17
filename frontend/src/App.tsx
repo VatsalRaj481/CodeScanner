@@ -111,6 +111,7 @@ export const App: React.FC = () => {
   };
 
   const handleScan = async () => {
+    setIsHistoryOpen(false);
     setIsLoading(true);
     setError(null);
 
