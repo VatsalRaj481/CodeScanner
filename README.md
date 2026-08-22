@@ -119,8 +119,8 @@ $$\text{Risk Level} = \max(\text{File Risk Levels}) \quad \text{where } \text{CR
 ## 🛠️ Tech Stack
 
 * **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, `recharts`, `react-diff-viewer-continued`, `jsPDF`, `JSZip`, Lucide Icons
-* **Backend**: Python FastAPI, Uvicorn, Pydantic v2, `slowapi`, `cachetools`, `pytest`, `python-dotenv`
-* **AI Engine**: Google Gemini API via `google-generativeai` SDK
+* **Backend**: Java 21, Spring Boot 3.2.3, Maven, WebFlux (WebClient), Caffeine Cache
+* **AI Engine**: Google Gemini API
 
 ---
 
@@ -129,12 +129,9 @@ $$\text{Risk Level} = \max(\text{File Risk Levels}) \quad \text{where } \text{CR
 ```text
 security-scanner/
 ├── backend/
-│   ├── main.py            # FastAPI endpoints, CORS, slowapi rate limiting & structured JSON logging
-│   ├── scanner.py         # Gemini AI engine, multi-language static fallback scanner & SHA-256 TTL cache
-│   ├── models.py          # Pydantic v2 schemas for single & batch scan requests/responses
-│   ├── test_scanner.py    # Pytest unit test suite for static rule engine
-│   ├── requirements.txt   # Python dependency declarations
-│   └── .env               # Local configuration environment file
+│   ├── src/               # Java 21 Spring Boot source code (Controllers, Services, DTOs)
+│   ├── pom.xml            # Maven project & dependency declarations
+│   └── Dockerfile         # Multi-stage Docker build image definition
 └── frontend/
     ├── src/
     │   ├── App.tsx        # Main application layout, scan state & history persistence
@@ -159,25 +156,22 @@ security-scanner/
 ### Prerequisites
 Ensure you have **Python 3.10+** and **Node.js 18+** installed.
 
-### 1. Backend Setup
+### 1. Backend Setup (Java Spring Boot)
 
 1. Navigate to the backend directory:
    ```bash
    cd backend
    ```
-2. Install dependencies:
+2. Build the application with Maven:
    ```bash
-   pip install -r requirements.txt
+   mvn clean package
    ```
-3. Run the unit test suite:
+3. Run the Spring Boot application:
    ```bash
-   pytest test_scanner.py
-   ```
-4. Start the FastAPI server:
-   ```bash
-   python -m uvicorn main:app --reload --port 8000
+   java -jar target/backend-java-1.0.0.jar
    ```
    *Backend service runs at `http://localhost:8000`.*
+
 
 ### 2. Frontend Setup
 
