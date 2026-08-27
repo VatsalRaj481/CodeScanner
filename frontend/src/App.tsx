@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ScanResults } from './components/ScanResults';
 import { ScanHistoryPanel, ScanHistoryItem } from './components/ScanHistoryPanel';
-import { scanCodeApi, scanBatchCodeApi, ScanResponse, FileItem } from './api/scanner';
+import { scanCodeApi, scanBatchCodeApi, wakePingApi, ScanResponse, FileItem } from './api/scanner';
 import { ExternalLink, Terminal, History } from 'lucide-react';
 
 import { getDemoSnippet } from './demoSnippets';
@@ -23,6 +23,11 @@ export const App: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
+  // Trigger fire-and-forget wake-ping on initial app mount to awaken cold-start backend
+  useEffect(() => {
+    wakePingApi();
+  }, []);
+
   // Load scan history from localStorage on initial mount
   useEffect(() => {
     try {
@@ -39,7 +44,7 @@ export const App: React.FC = () => {
     const checkStatus = async () => {
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       try {
-        const res = await fetch(apiBaseUrl);
+        const res = await fetch(`${apiBaseUrl}/health`);
         if (res.ok) {
           setBackendStatus('online');
         } else {

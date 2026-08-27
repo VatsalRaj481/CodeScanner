@@ -36,8 +36,48 @@ export interface ScanResponse {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+/**
+ * Fire-and-forget wake ping to warm up backend on frontend mount.
+ */
+export function wakePingApi(): void {
+  fetch(`${API_BASE_URL}/health`, { cache: 'no-store' }).catch(() => {
+    // Silently ignore errors - wake ping is fire-and-forget
+  });
+}
+
+/**
+ * Retry wrapper with backoff (3 retries, ~3s delay) to gracefully handle backend cold-starts
+ * (e.g., Render free tier 502/503/504 gateway errors or network timeouts).
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3,
+  delayMs = 3000
+): Promise<Response> {
+  let attempt = 0;
+  while (true) {
+    try {
+      const response = await fetch(url, options);
+      if (!response.ok && response.status >= 500 && attempt < maxRetries) {
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      return response;
+    } catch (err) {
+      if (attempt < maxRetries) {
+        attempt++;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
 export async function scanCodeApi(code: string, language: string): Promise<ScanResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/scan`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/scan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -54,7 +94,7 @@ export async function scanCodeApi(code: string, language: string): Promise<ScanR
 }
 
 export async function scanBatchCodeApi(files: FileItem[]): Promise<ScanResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/scan-batch`, {
+  const response = await fetchWithRetry(`${API_BASE_URL}/api/scan-batch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

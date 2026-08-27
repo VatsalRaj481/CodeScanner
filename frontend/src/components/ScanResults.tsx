@@ -12,24 +12,40 @@ interface ScanResultsProps {
 
 // ── Skeleton loader (Inner panel content only, no duplicate outer frame) ─────
 const ScanResultsSkeleton: React.FC = () => (
-  <div className="space-y-6 animate-pulse py-2">
-    <div className="flex items-center space-x-5 pb-6 border-b border-slate-800/80">
-      <div className="w-28 h-28 rounded-full bg-slate-800/50 shrink-0" />
-      <div className="space-y-2.5 flex-1">
-        <div className="h-3 bg-slate-800/50 rounded w-1/4" />
-        <div className="h-5 bg-slate-800/50 rounded w-1/2" />
-        <div className="h-3 bg-slate-800/50 rounded w-1/3" />
+  <div className="space-y-6 py-2">
+    {/* Cold start status notification card */}
+    <div className="bg-sky-950/40 border border-sky-800/50 rounded-xl p-4 flex items-center space-x-3.5 text-xs text-sky-200">
+      <div className="relative w-4 h-4 flex items-center justify-center shrink-0">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75" />
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-500" />
+      </div>
+      <div className="space-y-0.5">
+        <p className="font-semibold text-sky-300">Auditing code in progress...</p>
+        <p className="text-[11px] text-sky-400/90 font-mono">
+          If backend is spinning up from cold-start, this may take 30–50s. Automatic retries are active.
+        </p>
       </div>
     </div>
-    <div className="grid grid-cols-4 gap-3">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-14 bg-slate-800/30 rounded-xl" />
-      ))}
-    </div>
-    <div className="space-y-4 pt-2">
-      <div className="h-3.5 bg-slate-800/40 rounded w-1/4" />
-      <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
-      <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
+
+    <div className="space-y-6 animate-pulse">
+      <div className="flex items-center space-x-5 pb-6 border-b border-slate-800/80">
+        <div className="w-28 h-28 rounded-full bg-slate-800/50 shrink-0" />
+        <div className="space-y-2.5 flex-1">
+          <div className="h-3 bg-slate-800/50 rounded w-1/4" />
+          <div className="h-5 bg-slate-800/50 rounded w-1/2" />
+          <div className="h-3 bg-slate-800/50 rounded w-1/3" />
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-14 bg-slate-800/30 rounded-xl" />
+        ))}
+      </div>
+      <div className="space-y-4 pt-2">
+        <div className="h-3.5 bg-slate-800/40 rounded w-1/4" />
+        <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
+        <div className="h-28 bg-slate-800/20 rounded-xl border border-slate-800/40" />
+      </div>
     </div>
   </div>
 );

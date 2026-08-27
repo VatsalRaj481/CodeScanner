@@ -29,6 +29,13 @@ public class ScanController {
         return res;
     }
 
+    @GetMapping("/health")
+    public Map<String, String> healthCheck() {
+        Map<String, String> res = new HashMap<>();
+        res.put("status", "healthy");
+        return res;
+    }
+
     @PostMapping("/api/scan")
     public ResponseEntity<?> scanCode(@RequestBody(required = false) ScanRequest scanReq) {
         if (scanReq == null || scanReq.getCode() == null || scanReq.getCode().trim().isEmpty()) {
