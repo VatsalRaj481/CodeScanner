@@ -44,7 +44,7 @@ export const App: React.FC = () => {
     const checkStatus = async () => {
       const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
       try {
-        const res = await fetch(`${apiBaseUrl}/health`);
+        const res = await fetch(`${apiBaseUrl}/api/status`);
         if (res.ok) {
           setBackendStatus('online');
         } else {

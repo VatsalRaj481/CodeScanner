@@ -29,7 +29,7 @@ public class ScanController {
         return res;
     }
 
-    @GetMapping("/health")
+    @GetMapping({"/health", "/api/status", "/api/health"})
     public Map<String, String> healthCheck() {
         Map<String, String> res = new HashMap<>();
         res.put("status", "healthy");

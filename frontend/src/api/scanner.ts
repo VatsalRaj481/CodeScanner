@@ -38,9 +38,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
  * Fire-and-forget wake ping to warm up backend on frontend mount.
+ * Uses /api/status to avoid browser adblockers blocking /health (ERR_BLOCKED_BY_CLIENT).
  */
 export function wakePingApi(): void {
-  fetch(`${API_BASE_URL}/health`, { cache: 'no-store' }).catch(() => {
+  fetch(`${API_BASE_URL}/api/status`, { cache: 'no-store' }).catch(() => {
     // Silently ignore errors - wake ping is fire-and-forget
   });
 }
