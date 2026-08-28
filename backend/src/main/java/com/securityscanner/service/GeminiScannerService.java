@@ -80,6 +80,7 @@ public class GeminiScannerService {
 
         Map<String, Object> genConfig = new HashMap<>();
         genConfig.put("responseMimeType", "application/json");
+        genConfig.put("temperature", 0.1);
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("contents", Collections.singletonList(content));
