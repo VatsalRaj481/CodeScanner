@@ -17,7 +17,7 @@
     "id": "py-secrets-aws-dict",
     "name": "Python Hardcoded Cloud Service API Keys in Config",
     "language": "python",
-    "code": "CONFIG = {\n    'AWS_ACCESS_KEY_ID': 'AKIAIOSFODNN7EXAMPLE',\n    'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',\n    'STRIPE_WEBHOOK_SECRET': 'whsec_999a0b1c2d3e4f5a6b7c8d9e0f1a2b3c'\n}",
+    "code": "CONFIG = {\n    'AWS_ACCESS_KEY_ID': 'MOCK_AWS_ACCESS_KEY_ID_EXAMPLE',\n    'AWS_SECRET_ACCESS_KEY': 'mock_aws_secret_access_key_placeholder_value_12345',\n    'STRIPE_WEBHOOK_SECRET': 'mock_stripe_webhook_signing_secret_test_token_9999'\n}",
     "expected_cwes": ["CWE-798"]
   },
   {
@@ -45,7 +45,7 @@
     "id": "js-secrets-sendgrid",
     "name": "JavaScript Hardcoded Production Mailer Credentials",
     "language": "javascript",
-    "code": "const mailerOptions = {\n    host: 'smtp.sendgrid.net',\n    auth: {\n        user: 'apikey',\n        pass: 'SG.abcdef123456_super_secret_production_token_7890'\n    }\n};",
+    "code": "const mailerOptions = {\n    host: 'smtp.sendgrid.net',\n    auth: {\n        user: 'apikey',\n        pass: 'mock_sendgrid_mailer_secret_password_token_999'\n    }\n};",
     "expected_cwes": ["CWE-798"]
   },
   {
@@ -87,7 +87,7 @@
     "id": "java-secrets-rsa",
     "name": "Java Hardcoded Private Signing Key in Static Constant",
     "language": "java",
-    "code": "public class AuthConstants {\n    public static final String MASTER_API_KEY = \"master_live_key_9938817744aa8822\";\n    public static final String PRIVATE_KEY_PEM = \"-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQEA0...\";\n}",
+    "code": "public class AuthConstants {\n    public static final String MASTER_API_KEY = \"mock_master_api_key_test_value_99388177\";\n    public static final String PRIVATE_KEY_PEM = \"mock_hardcoded_private_rsa_key_material_test_value\";\n}",
     "expected_cwes": ["CWE-798"]
   },
   {
