@@ -71,6 +71,8 @@ public class RagAccuracyBenchmarkTest {
         knowledgeBaseService.init();
 
         GeminiScannerService geminiScannerService = new GeminiScannerService(knowledgeBaseService);
+        geminiScannerService.validateConfiguredModels();
+
         StaticAnalysisFallbackService fallbackService = new StaticAnalysisFallbackService();
         codeScannerService = new CodeScannerService(geminiScannerService, fallbackService, knowledgeBaseService);
 
@@ -95,48 +97,66 @@ public class RagAccuracyBenchmarkTest {
 
         MetricSummary ragMetrics = new MetricSummary();
         MetricSummary noRagMetrics = new MetricSummary();
+        int[] geminiCalls = new int[]{0};
+        int[] fallbackCalls = new int[]{0};
 
         StringBuilder report = new StringBuilder();
         report.append("========================================================================================================\n");
         report.append("           AI SECURITY SCANNER: OUT-OF-SAMPLE RAG DETECTION ACCURACY & F1 BENCHMARK             \n");
         report.append("========================================================================================================\n\n");
-        report.append(String.format("%-22s | %-10s | %-12s | %-12s | %-12s | %-8s\n",
-                "Fixture ID", "Language", "Mode", "Expected CWE", "Detected CWE", "Status"));
+        report.append(String.format("%-22s | %-10s | %-12s | %-10s | %-12s | %-12s | %-8s\n",
+                "Fixture ID", "Language", "Mode", "Engine", "Expected CWE", "Detected CWE", "Status"));
         report.append("--------------------------------------------------------------------------------------------------------\n");
 
+        int fixtureIndex = 0;
         for (AccuracyFixture fix : fixtures) {
+            fixtureIndex++;
+
             // 1. Evaluate with useRag = true
             CodeScannerService.SingleScanResult ragResult = codeScannerService.analyzeCode(fix.code, fix.language, true);
+            if ("gemini".equals(ragResult.engine)) geminiCalls[0]++; else fallbackCalls[0]++;
             Set<String> ragDetected = extractCwes(ragResult.response);
             evaluateFixture(fix, ragDetected, ragMetrics);
             String ragStatus = isMatch(fix.expectedCwes, ragDetected) ? "PASS" : "FAIL";
 
+            // Delay between requests to respect free-tier rate limits
+            try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+
             // 2. Evaluate with useRag = false
             CodeScannerService.SingleScanResult noRagResult = codeScannerService.analyzeCode(fix.code, fix.language, false);
+            if ("gemini".equals(noRagResult.engine)) geminiCalls[0]++; else fallbackCalls[0]++;
             Set<String> noRagDetected = extractCwes(noRagResult.response);
             evaluateFixture(fix, noRagDetected, noRagMetrics);
             String noRagStatus = isMatch(fix.expectedCwes, noRagDetected) ? "PASS" : "FAIL";
 
-            report.append(String.format("%-22s | %-10s | %-12s | %-12s | %-12s | %-8s\n",
-                    fix.id, fix.language, "useRag=TRUE",
+            // Delay between requests to respect free-tier rate limits
+            try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+
+            report.append(String.format("%-22s | %-10s | %-12s | %-10s | %-12s | %-12s | %-8s\n",
+                    fix.id, fix.language, "useRag=TRUE", ragResult.engine,
                     fix.expectedCwes.isEmpty() ? "NONE (Clean)" : String.join(",", fix.expectedCwes),
                     ragDetected.isEmpty() ? "NONE" : String.join(",", ragDetected),
                     ragStatus));
 
-            report.append(String.format("%-22s | %-10s | %-12s | %-12s | %-12s | %-8s\n",
-                    fix.id, fix.language, "useRag=FALSE",
+            report.append(String.format("%-22s | %-10s | %-12s | %-10s | %-12s | %-12s | %-8s\n",
+                    fix.id, fix.language, "useRag=FALSE", noRagResult.engine,
                     fix.expectedCwes.isEmpty() ? "NONE (Clean)" : String.join(",", fix.expectedCwes),
                     noRagDetected.isEmpty() ? "NONE" : String.join(",", noRagDetected),
                     noRagStatus));
 
             report.append("--------------------------------------------------------------------------------------------------------\n");
+
+            System.out.printf("[%d/%d] Evaluated %s (Engine: RAG=%s, NoRAG=%s | Total Gemini Calls: %d, Fallbacks: %d)%n",
+                    fixtureIndex, fixtures.size(), fix.id, ragResult.engine, noRagResult.engine, geminiCalls[0], fallbackCalls[0]);
         }
 
         report.append("\n==================================== ACCURACY & F1 COMPARISON SUMMARY ==================================\n");
-        report.append(String.format("Total Fixtures Evaluated: %d (Vulnerable: %d, Clean/Controls: %d)\n\n",
+        report.append(String.format("Total Fixtures Evaluated: %d (Vulnerable: %d, Clean/Controls: %d)\n",
                 fixtures.size(),
                 fixtures.stream().filter(f -> !f.expectedCwes.isEmpty()).count(),
                 fixtures.stream().filter(f -> f.expectedCwes.isEmpty()).count()));
+        report.append(String.format("Engine Execution Breakdown: Gemini Live Calls = %d, Static Fallback Calls = %d\n\n",
+                geminiCalls[0], fallbackCalls[0]));
 
         report.append(String.format("Metric                | useRag = TRUE (With RAG Context) | useRag = FALSE (Baseline Without RAG)\n"));
         report.append("--------------------------------------------------------------------------------------------------------\n");

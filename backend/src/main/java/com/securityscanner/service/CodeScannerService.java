@@ -46,6 +46,7 @@ public class CodeScannerService {
         this(geminiScannerService, fallbackService, new KnowledgeBaseService());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public CodeScannerService(GeminiScannerService geminiScannerService,
                               StaticAnalysisFallbackService fallbackService,
                               KnowledgeBaseService knowledgeBaseService) {

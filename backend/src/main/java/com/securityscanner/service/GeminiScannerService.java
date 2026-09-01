@@ -61,6 +61,7 @@ public class GeminiScannerService {
         this(new KnowledgeBaseService());
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
     public GeminiScannerService(KnowledgeBaseService knowledgeBaseService) {
         this.webClient = WebClient.builder().build();
         this.objectMapper = new ObjectMapper();
@@ -73,12 +74,74 @@ public class GeminiScannerService {
         this.knowledgeBaseService = knowledgeBaseService;
     }
 
+    @org.springframework.beans.factory.annotation.Value("${gemini.model.generation:gemini-3.6-flash}")
+    private String generationModel = "gemini-3.6-flash";
+
+    public String getGenerationModel() {
+        if (generationModel == null || generationModel.isEmpty()) {
+            return com.securityscanner.config.DotenvConfig.getEnv("GEMINI_MODEL_GENERATION", "gemini-3.6-flash");
+        }
+        return generationModel;
+    }
+
+    public void setGenerationModel(String generationModel) {
+        this.generationModel = generationModel;
+    }
+
+    @jakarta.annotation.PostConstruct
+    public void validateConfiguredModels() {
+        String apiKey = com.securityscanner.config.DotenvConfig.getEnv("GEMINI_API_KEY", "");
+        if (apiKey == null || apiKey.isEmpty() || "your_key_here".equals(apiKey)) {
+            return;
+        }
+        try {
+            String listUrl = "https://generativelanguage.googleapis.com/v1beta/models?key=" + apiKey;
+            String raw = webClient.get()
+                    .uri(listUrl)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(java.time.Duration.ofSeconds(6));
+            if (raw != null) {
+                JsonNode root = objectMapper.readTree(raw);
+                JsonNode modelsNode = root.path("models");
+                Set<String> modelSet = new HashSet<>();
+                if (modelsNode.isArray()) {
+                    for (JsonNode m : modelsNode) {
+                        String name = m.path("name").asText();
+                        modelSet.add(name.replace("models/", ""));
+                    }
+                }
+                String genModel = getGenerationModel();
+                if (!modelSet.isEmpty() && !modelSet.contains(genModel)) {
+                    System.err.println("[STARTUP MODEL WARNING] Configured generation model '" + genModel +
+                            "' is NOT in the Gemini ListModels endpoint. Available models: " + modelSet);
+                }
+                if (knowledgeBaseService != null) {
+                    String embModel = knowledgeBaseService.getEmbeddingModel();
+                    if (!modelSet.isEmpty() && !modelSet.contains(embModel)) {
+                        System.err.println("[STARTUP MODEL WARNING] Configured embedding model '" + embModel +
+                                "' is NOT in the Gemini ListModels endpoint. Available models: " + modelSet);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[STARTUP MODEL CHECK NOTICE] Could not verify models via ListModels: " + e.getMessage());
+        }
+    }
+
     public ScanResponse analyzeCodeWithGemini(String code, String language, String apiKey) throws Exception {
         return analyzeCodeWithGemini(code, language, apiKey, true);
     }
 
     public ScanResponse analyzeCodeWithGemini(String code, String language, String apiKey, boolean useRag) throws Exception {
-        String[] modelNames = new String[]{"gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-flash-latest", "gemini-pro-latest"};
+        String primaryModel = getGenerationModel();
+        List<String> modelNames = new ArrayList<>();
+        modelNames.add(primaryModel);
+        if (!"gemini-3.6-flash".equals(primaryModel)) {
+            modelNames.add("gemini-3.6-flash");
+        }
+        modelNames.add("gemini-flash-latest");
+
         Exception lastException = null;
 
         List<KnowledgeBaseEntry> retrievedEntries = Collections.emptyList();
@@ -97,7 +160,7 @@ public class GeminiScannerService {
             try {
                 return executeGeminiCall(code, language, apiKey, modelName, ragContextBlock, retrievedEntries);
             } catch (Exception e) {
-                System.err.println("Gemini model " + modelName + " attempt failed: " + e.getMessage());
+                System.err.println("Gemini model " + modelName + " attempt failed: (" + e.getClass().getSimpleName() + ") " + e.getMessage());
                 lastException = e;
             }
         }
@@ -139,13 +202,28 @@ public class GeminiScannerService {
 
         String url = "https://generativelanguage.googleapis.com/v1beta/models/" + modelName + ":generateContent?key=" + apiKey;
 
-        String rawResponse = webClient.post()
-                .uri(url)
-                .header("Content-Type", "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(java.time.Duration.ofSeconds(6));
+        String rawResponse;
+        try {
+            rawResponse = webClient.post()
+                    .uri(url)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(java.time.Duration.ofSeconds(30));
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            int status = e.getStatusCode().value();
+            if (status == 404) {
+                System.err.println("[GENERATION ERROR 404] Model '" + modelName + "' not found or deprecated: " + e.getResponseBodyAsString());
+            } else if (status == 429) {
+                System.err.println("[GENERATION ERROR 429] Rate limit / quota exhausted on '" + modelName + "': " + e.getResponseBodyAsString());
+            } else if (status == 401 || status == 403) {
+                System.err.println("[GENERATION ERROR " + status + "] Authentication/Permission error on '" + modelName + "': " + e.getResponseBodyAsString());
+            } else {
+                System.err.println("[GENERATION ERROR " + status + "] on '" + modelName + "': " + e.getResponseBodyAsString());
+            }
+            throw e;
+        }
 
         if (rawResponse == null || rawResponse.isEmpty()) {
             throw new RuntimeException("Empty response received from Gemini API");
@@ -162,7 +240,17 @@ public class GeminiScannerService {
             throw new RuntimeException("No text parts returned from Gemini API candidate");
         }
 
-        String textContent = parts.get(0).path("text").asText().trim();
+        String textContent = null;
+        for (JsonNode p : parts) {
+            if (p.has("text") && !p.path("text").asText().trim().isEmpty()) {
+                textContent = p.path("text").asText().trim();
+                break;
+            }
+        }
+
+        if (textContent == null || textContent.isEmpty()) {
+            throw new RuntimeException("No text content found in candidate parts: " + parts);
+        }
 
         // Strip ```json markdown wrappers if present
         if (textContent.startsWith("```")) {

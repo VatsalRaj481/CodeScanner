@@ -69,26 +69,38 @@ public class KnowledgeBaseService {
         return Collections.unmodifiableList(knowledgeBase);
     }
 
+    @org.springframework.beans.factory.annotation.Value("${gemini.model.embedding:gemini-embedding-001}")
+    private String embeddingModel = "gemini-embedding-001";
+
+    public String getEmbeddingModel() {
+        if (embeddingModel == null || embeddingModel.isEmpty()) {
+            return com.securityscanner.config.DotenvConfig.getEnv("GEMINI_MODEL_EMBEDDING", "gemini-embedding-001");
+        }
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
     public List<KnowledgeBaseEntry> retrieveContext(String code, int topK, String apiKey) {
-        if (code == null || code.trim().isEmpty() || knowledgeBase.isEmpty()) {
+        if (knowledgeBase.isEmpty()) {
+            loadKnowledgeBase();
+        }
+        if (knowledgeBase.isEmpty()) {
             return Collections.emptyList();
         }
 
-        int limit = (topK > 0) ? topK : 4;
         List<Double> queryEmbedding = null;
-
         if (apiKey != null && !apiKey.isEmpty() && !"your_key_here".equals(apiKey)) {
             try {
                 queryEmbedding = fetchGeminiEmbedding(code, apiKey);
             } catch (Exception e) {
-                System.err.println("Gemini text-embedding-004 call failed, falling back to lexical similarity: " + e.getMessage());
+                System.err.println("Gemini " + getEmbeddingModel() + " call failed, falling back to lexical similarity: " + e.getMessage());
             }
         }
 
-        if (queryEmbedding == null) {
-            queryEmbedding = computePseudoEmbedding(code);
-        }
-
+        int limit = (topK > 0) ? topK : 4;
         final List<Double> finalQueryVector = queryEmbedding;
 
         // Compute hybrid scores (cosine similarity + lexical matching boost)
@@ -111,7 +123,8 @@ public class KnowledgeBaseService {
 
     public List<Double> fetchGeminiEmbedding(String text, String apiKey) throws Exception {
         String truncatedText = (text.length() > 2048) ? text.substring(0, 2048) : text;
-        String url = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=" + apiKey;
+        String model = getEmbeddingModel();
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/" + model + ":embedContent?key=" + apiKey;
 
         Map<String, Object> textPart = new HashMap<>();
         textPart.put("text", truncatedText);
@@ -120,25 +133,40 @@ public class KnowledgeBaseService {
         contentMap.put("parts", Collections.singletonList(textPart));
 
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "models/text-embedding-004");
+        requestBody.put("model", "models/" + model);
         requestBody.put("content", contentMap);
 
-        String rawResponse = webClient.post()
-                .uri(url)
-                .header("Content-Type", "application/json")
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block(java.time.Duration.ofSeconds(5));
+        String rawResponse;
+        try {
+            rawResponse = webClient.post()
+                    .uri(url)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block(java.time.Duration.ofSeconds(5));
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            int status = e.getStatusCode().value();
+            if (status == 404) {
+                System.err.println("[EMBEDDING ERROR 404] Model '" + model + "' not found or deprecated: " + e.getResponseBodyAsString());
+            } else if (status == 429) {
+                System.err.println("[EMBEDDING ERROR 429] Rate limit / quota exhausted on '" + model + "': " + e.getResponseBodyAsString());
+            } else if (status == 401 || status == 403) {
+                System.err.println("[EMBEDDING ERROR " + status + "] Authentication/Permission error on '" + model + "': " + e.getResponseBodyAsString());
+            } else {
+                System.err.println("[EMBEDDING ERROR " + status + "] on '" + model + "': " + e.getResponseBodyAsString());
+            }
+            throw e;
+        }
 
         if (rawResponse == null || rawResponse.isEmpty()) {
-            throw new RuntimeException("Empty response received from text-embedding-004");
+            throw new RuntimeException("Empty response received from " + model);
         }
 
         JsonNode root = objectMapper.readTree(rawResponse);
         JsonNode valuesNode = root.path("embedding").path("values");
         if (valuesNode.isEmpty() || !valuesNode.isArray()) {
-            throw new RuntimeException("No embedding values array in response");
+            throw new RuntimeException("No embedding values array in response from " + model);
         }
 
         List<Double> values = new ArrayList<>();
