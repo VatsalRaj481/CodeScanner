@@ -1,3 +1,10 @@
+export interface VulnerabilitySource {
+  cwe_id?: string;
+  cweId?: string;
+  title: string;
+  url: string;
+}
+
 export interface Vulnerability {
   id: string;
   severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
@@ -10,6 +17,7 @@ export interface Vulnerability {
   fix_explanation: string;
   cwe_id: string;
   filename?: string;
+  sources?: VulnerabilitySource[];
 }
 
 export interface FileItem {
@@ -77,13 +85,13 @@ async function fetchWithRetry(
   }
 }
 
-export async function scanCodeApi(code: string, language: string): Promise<ScanResponse> {
+export async function scanCodeApi(code: string, language: string, useRag = true): Promise<ScanResponse> {
   const response = await fetchWithRetry(`${API_BASE_URL}/api/scan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ code, language }),
+    body: JSON.stringify({ code, language, use_rag: useRag }),
   });
 
   if (!response.ok) {
@@ -94,13 +102,13 @@ export async function scanCodeApi(code: string, language: string): Promise<ScanR
   return response.json();
 }
 
-export async function scanBatchCodeApi(files: FileItem[]): Promise<ScanResponse> {
+export async function scanBatchCodeApi(files: FileItem[], useRag = true): Promise<ScanResponse> {
   const response = await fetchWithRetry(`${API_BASE_URL}/api/scan-batch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ files }),
+    body: JSON.stringify({ files, use_rag: useRag }),
   });
 
   if (!response.ok) {

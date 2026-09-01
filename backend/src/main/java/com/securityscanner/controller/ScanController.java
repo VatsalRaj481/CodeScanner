@@ -46,7 +46,7 @@ public class ScanController {
         long startTime = System.nanoTime();
         try {
             CodeScannerService.SingleScanResult result = codeScannerService.analyzeCode(
-                    scanReq.getCode(), scanReq.getLanguage()
+                    scanReq.getCode(), scanReq.getLanguage(), scanReq.isUseRag()
             );
             double durationMs = (System.nanoTime() - startTime) / 1_000_000.0;
             int findingCount = (result.response.getVulnerabilities() != null) ? result.response.getVulnerabilities().size() : 0;
@@ -68,7 +68,9 @@ public class ScanController {
 
         long startTime = System.nanoTime();
         try {
-            CodeScannerService.SingleScanResult result = codeScannerService.analyzeBatch(batchReq.getFiles());
+            CodeScannerService.SingleScanResult result = codeScannerService.analyzeBatch(
+                    batchReq.getFiles(), batchReq.isUseRag()
+            );
             double durationMs = (System.nanoTime() - startTime) / 1_000_000.0;
             int findingCount = (result.response.getVulnerabilities() != null) ? result.response.getVulnerabilities().size() : 0;
 

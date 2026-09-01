@@ -1,0 +1,135 @@
+[
+  {
+    "id": "py-sqli-orm-bypass",
+    "name": "Python Raw SQL via String Format in Custom Repository",
+    "language": "python",
+    "code": "def find_account_by_email(email_filter):\n    sql = \"SELECT id, email, balance FROM user_accounts WHERE active = 1 AND email LIKE '%{}%'\".format(email_filter)\n    return db.engine.execute(sql).fetchall()",
+    "expected_cwes": ["CWE-89"]
+  },
+  {
+    "id": "py-cmdi-popen-shell",
+    "name": "Python Indirect Command Injection in Subprocess Popen",
+    "language": "python",
+    "code": "import subprocess\ndef convert_media_file(filename, output_format):\n    command_str = f\"ffmpeg -i {filename} -vn output.{output_format}\"\n    proc = subprocess.Popen(command_str, shell=True, stdout=subprocess.PIPE)\n    return proc.communicate()",
+    "expected_cwes": ["CWE-78"]
+  },
+  {
+    "id": "py-secrets-aws-dict",
+    "name": "Python Hardcoded Cloud Service API Keys in Config",
+    "language": "python",
+    "code": "CONFIG = {\n    'AWS_ACCESS_KEY_ID': 'AKIAIOSFODNN7EXAMPLE',\n    'AWS_SECRET_ACCESS_KEY': 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',\n    'STRIPE_WEBHOOK_SECRET': 'whsec_999a0b1c2d3e4f5a6b7c8d9e0f1a2b3c'\n}",
+    "expected_cwes": ["CWE-798"]
+  },
+  {
+    "id": "py-crypto-sha1-signatures",
+    "name": "Python Broken Cryptographic Hash for Verification",
+    "language": "python",
+    "code": "import hashlib\ndef generate_tamper_signature(payload_bytes, secret_key):\n    hasher = hashlib.sha1()\n    hasher.update(secret_key + payload_bytes)\n    return hasher.hexdigest()",
+    "expected_cwes": ["CWE-327"]
+  },
+  {
+    "id": "js-sqli-knex-raw",
+    "name": "Node.js Knex Raw Unescaped SQL Query",
+    "language": "javascript",
+    "code": "async function searchCustomers(searchTerm) {\n    const results = await knex.raw(\"SELECT * FROM customers WHERE company_name = '\" + searchTerm + \"' AND is_deleted = 0\");\n    return results.rows;\n}",
+    "expected_cwes": ["CWE-89"]
+  },
+  {
+    "id": "js-cmdi-spawn-shell",
+    "name": "Node.js Indirect Command Execution via Shell Script Template",
+    "language": "javascript",
+    "code": "const { execSync } = require('child_process');\nfunction backupTenantDatabase(tenantIdentifier) {\n    const script = `pg_dump -U postgres -d ${tenantIdentifier}_db > /tmp/backup.sql`;\n    execSync(script, { shell: '/bin/bash' });\n}",
+    "expected_cwes": ["CWE-78"]
+  },
+  {
+    "id": "js-secrets-sendgrid",
+    "name": "JavaScript Hardcoded Production Mailer Credentials",
+    "language": "javascript",
+    "code": "const mailerOptions = {\n    host: 'smtp.sendgrid.net',\n    auth: {\n        user: 'apikey',\n        pass: 'SG.abcdef123456_super_secret_production_token_7890'\n    }\n};",
+    "expected_cwes": ["CWE-798"]
+  },
+  {
+    "id": "js-crypto-des",
+    "name": "Node.js Broken DES Cipher Usage",
+    "language": "javascript",
+    "code": "const crypto = require('crypto');\nfunction encryptCardNumber(cardNum, key) {\n    const cipher = crypto.createCipheriv('des-ecb', key.slice(0, 8), null);\n    return cipher.update(cardNum, 'utf8', 'hex') + cipher.final('hex');\n}",
+    "expected_cwes": ["CWE-327"]
+  },
+  {
+    "id": "ts-sqli-typeorm",
+    "name": "TypeScript Dynamic Query Builder Concatenation",
+    "language": "typescript",
+    "code": "import { EntityManager } from 'typeorm';\nexport async function getInvoices(manager: EntityManager, statusFilter: string) {\n    const rawSql = `SELECT * FROM invoices WHERE status = '${statusFilter}' ORDER BY created_at DESC`;\n    return await manager.query(rawSql);\n}",
+    "expected_cwes": ["CWE-89"]
+  },
+  {
+    "id": "ts-cmdi-docker",
+    "name": "TypeScript System Container Execution via Template",
+    "language": "typescript",
+    "code": "import { exec } from 'child_process';\nexport function restartService(containerTag: string): void {\n    exec(`docker restart app_container_${containerTag}`, (err, stdout) => {\n        if (err) console.error(err);\n    });\n}",
+    "expected_cwes": ["CWE-78"]
+  },
+  {
+    "id": "java-sqli-hibernate",
+    "name": "Java Hibernate HQL Query Concatenation",
+    "language": "java",
+    "code": "public List<UserEntity> searchByRole(Session session, String userRole) {\n    String hql = \"FROM UserEntity WHERE active = true AND role = '\" + userRole + \"'\";\n    Query<UserEntity> query = session.createQuery(hql, UserEntity.class);\n    return query.list();\n}",
+    "expected_cwes": ["CWE-89"]
+  },
+  {
+    "id": "java-cmdi-processbuilder",
+    "name": "Java ProcessBuilder Shell Invocation with Unsanitized Param",
+    "language": "java",
+    "code": "public void generateReport(String reportName) throws Exception {\n    String[] cmd = {\"/bin/sh\", \"-c\", \"./generate_pdf.sh --name=\" + reportName};\n    Process p = new ProcessBuilder(cmd).start();\n    p.waitFor();\n}",
+    "expected_cwes": ["CWE-78"]
+  },
+  {
+    "id": "java-secrets-rsa",
+    "name": "Java Hardcoded Private Signing Key in Static Constant",
+    "language": "java",
+    "code": "public class AuthConstants {\n    public static final String MASTER_API_KEY = \"master_live_key_9938817744aa8822\";\n    public static final String PRIVATE_KEY_PEM = \"-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQEA0...\";\n}",
+    "expected_cwes": ["CWE-798"]
+  },
+  {
+    "id": "java-crypto-rc4",
+    "name": "Java Weak RC4 Cipher for Sensitive Data",
+    "language": "java",
+    "code": "import javax.crypto.Cipher;\nimport javax.crypto.spec.SecretKeySpec;\npublic byte[] encryptPayload(byte[] data, byte[] keyBytes) throws Exception {\n    Cipher cipher = Cipher.getInstance(\"ARCFOUR\");\n    cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keyBytes, \"ARCFOUR\"));\n    return cipher.doFinal(data);\n}",
+    "expected_cwes": ["CWE-327"]
+  },
+  {
+    "id": "go-sqli-sprintf",
+    "name": "Go Dynamic SQL Formatting with fmt.Sprintf",
+    "language": "go",
+    "code": "func FindProduct(db *sql.DB, category string) (*sql.Rows, error) {\n    query := fmt.Sprintf(\"SELECT id, name, price FROM products WHERE category = '%s' AND stock > 0\", category)\n    return db.Query(query)\n}",
+    "expected_cwes": ["CWE-89"]
+  },
+  {
+    "id": "clean-python-safe",
+    "name": "Python Secure SQLAlchemy Parameterized Query with PBKDF2",
+    "language": "python",
+    "code": "import os, hashlib\ndef authenticate_user(db_session, email, raw_password):\n    salt = os.getenv('AUTH_SALT', '').encode()\n    expected_hash = hashlib.pbkdf2_hmac('sha256', raw_password.encode(), salt, 200000).hex()\n    return db_session.execute(\n        select(User).where(User.email == email, User.password_hash == expected_hash)\n    ).scalar_one_or_none()",
+    "expected_cwes": []
+  },
+  {
+    "id": "clean-js-safe",
+    "name": "JavaScript Secure Node-Postgres Parameterized Execution",
+    "language": "javascript",
+    "code": "const bcrypt = require('bcrypt');\nasync function verifyAndFetchUser(pool, username, passwordInput) {\n    const text = 'SELECT id, username, password_hash FROM accounts WHERE username = $1';\n    const res = await pool.query(text, [username]);\n    if (res.rows.length === 0) return null;\n    const match = await bcrypt.compare(passwordInput, res.rows[0].password_hash);\n    return match ? res.rows[0] : null;\n}",
+    "expected_cwes": []
+  },
+  {
+    "id": "clean-java-safe",
+    "name": "Java Secure PreparedStatement and Environment Credentials",
+    "language": "java",
+    "code": "public Optional<User> findUserById(Connection conn, long userId) throws SQLException {\n    String sql = \"SELECT id, username, full_name FROM users WHERE id = ? AND is_active = true\";\n    try (PreparedStatement stmt = conn.prepareStatement(sql)) {\n        stmt.setLong(1, userId);\n        try (ResultSet rs = stmt.executeQuery()) {\n            if (rs.next()) {\n                return Optional.of(new User(rs.getLong(\"id\"), rs.getString(\"username\")));\n            }\n        }\n    }\n    return Optional.empty();\n}",
+    "expected_cwes": []
+  },
+  {
+    "id": "clean-go-safe",
+    "name": "Go Secure Parameterized Query with Strong SHA-256",
+    "language": "go",
+    "code": "func VerifySignature(db *sql.DB, documentID int64, expectedHash string) (bool, error) {\n    var storedHash string\n    err := db.QueryRow(\"SELECT doc_sha256 FROM documents WHERE id = $1 AND verified = true\", documentID).Scan(&storedHash)\n    if err != nil {\n        return false, err\n    }\n    return hmac.Equal([]byte(storedHash), []byte(expectedHash)), nil\n}",
+    "expected_cwes": []
+  }
+]

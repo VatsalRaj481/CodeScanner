@@ -16,6 +16,7 @@ public class CodeScannerService {
 
     private final GeminiScannerService geminiScannerService;
     private final StaticAnalysisFallbackService fallbackService;
+    private final KnowledgeBaseService knowledgeBaseService;
     private final Cache<String, CacheEntry> scanCache;
 
     public static class CacheEntry {
@@ -42,8 +43,15 @@ public class CodeScannerService {
 
     public CodeScannerService(GeminiScannerService geminiScannerService,
                               StaticAnalysisFallbackService fallbackService) {
+        this(geminiScannerService, fallbackService, new KnowledgeBaseService());
+    }
+
+    public CodeScannerService(GeminiScannerService geminiScannerService,
+                              StaticAnalysisFallbackService fallbackService,
+                              KnowledgeBaseService knowledgeBaseService) {
         this.geminiScannerService = geminiScannerService;
         this.fallbackService = fallbackService;
+        this.knowledgeBaseService = knowledgeBaseService;
 
         long ttlSeconds = 3600;
         try {
@@ -57,8 +65,13 @@ public class CodeScannerService {
     }
 
     public String computeCodeHash(String code, String language) {
+        return computeCodeHash(code, language, true);
+    }
+
+    public String computeCodeHash(String code, String language, boolean useRag) {
         try {
-            String input = ((language != null ? language : "auto") + ":" + (code != null ? code.trim() : ""));
+            String input = ((language != null ? language : "auto") + ":" +
+                    (code != null ? code.trim() : "") + ":rag=" + useRag);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder();
@@ -69,12 +82,16 @@ public class CodeScannerService {
             }
             return hexString.toString();
         } catch (Exception e) {
-            return String.valueOf(Objects.hash(code, language));
+            return String.valueOf(Objects.hash(code, language, useRag));
         }
     }
 
     public SingleScanResult analyzeCode(String code, String language) {
-        String codeHash = computeCodeHash(code, language);
+        return analyzeCode(code, language, true);
+    }
+
+    public SingleScanResult analyzeCode(String code, String language, boolean useRag) {
+        String codeHash = computeCodeHash(code, language, useRag);
         CacheEntry cached = scanCache.getIfPresent(codeHash);
         if (cached != null) {
             return new SingleScanResult(cached.response, cached.engine, true);
@@ -83,17 +100,23 @@ public class CodeScannerService {
         String apiKey = DotenvConfig.getEnv("GEMINI_API_KEY", "");
         if (apiKey == null || apiKey.isEmpty() || "your_key_here".equals(apiKey)) {
             ScanResponse res = fallbackService.analyzeCode(code, language);
+            if (useRag && res.getVulnerabilities() != null) {
+                enrichWithSources(res.getVulnerabilities());
+            }
             scanCache.put(codeHash, new CacheEntry(res, "fallback"));
             return new SingleScanResult(res, "fallback", false);
         }
 
         try {
-            ScanResponse res = geminiScannerService.analyzeCodeWithGemini(code, language, apiKey);
+            ScanResponse res = geminiScannerService.analyzeCodeWithGemini(code, language, apiKey, useRag);
             scanCache.put(codeHash, new CacheEntry(res, "gemini"));
             return new SingleScanResult(res, "gemini", false);
         } catch (Exception e) {
             System.err.println("Gemini API analysis error/fallback triggered: " + e.getMessage());
             ScanResponse res = fallbackService.analyzeCode(code, language);
+            if (useRag && res.getVulnerabilities() != null) {
+                enrichWithSources(res.getVulnerabilities());
+            }
             if (res.getVulnerabilities() == null || res.getVulnerabilities().isEmpty()) {
                 res.setError("AI analysis notice: " + e.getMessage());
             }
@@ -103,6 +126,10 @@ public class CodeScannerService {
     }
 
     public SingleScanResult analyzeBatch(List<FileItem> files) {
+        return analyzeBatch(files, true);
+    }
+
+    public SingleScanResult analyzeBatch(List<FileItem> files, boolean useRag) {
         List<FileScanResult> fileResults = new ArrayList<>();
         List<Vulnerability> allVulns = new ArrayList<>();
         int totalLoc = 0;
@@ -125,7 +152,7 @@ public class CodeScannerService {
             String code = (fileItem.getCode() != null) ? fileItem.getCode() : "";
             String language = (fileItem.getLanguage() != null) ? fileItem.getLanguage() : "auto";
 
-            SingleScanResult singleResult = analyzeCode(code, language);
+            SingleScanResult singleResult = analyzeCode(code, language, useRag);
             if (singleResult.cached) {
                 anyCached = true;
             }
@@ -134,12 +161,12 @@ public class CodeScannerService {
             ScanResponse res = singleResult.response;
             if (res.getVulnerabilities() != null) {
                 for (Vulnerability v : res.getVulnerabilities()) {
-                    // Create a copy or set filename
                     Vulnerability copy = new Vulnerability(
                             v.getId(), v.getSeverity(), v.getTitle(), v.getCategory(),
                             v.getLineNumbers(), v.getDescription(), v.getWhyRisky(),
                             v.getFixCode(), v.getFixExplanation(), v.getCweId(),
-                            filename, v.getSource(), v.getConfidence()
+                            filename, v.getSource(), v.getConfidence(),
+                            v.getSources()
                     );
                     allVulns.add(copy);
                 }
@@ -185,5 +212,34 @@ public class CodeScannerService {
         );
 
         return new SingleScanResult(batchResponse, compositeEngine, anyCached);
+    }
+
+    private void enrichWithSources(List<Vulnerability> vulns) {
+        if (vulns == null || knowledgeBaseService == null) return;
+        List<KnowledgeBaseEntry> kbList = knowledgeBaseService.getKnowledgeBase();
+        if (kbList == null || kbList.isEmpty()) return;
+
+        Map<String, KnowledgeBaseEntry> kbMap = new HashMap<>();
+        for (KnowledgeBaseEntry entry : kbList) {
+            if (entry.getCweId() != null) kbMap.put(entry.getCweId().toUpperCase().trim(), entry);
+            if (entry.getId() != null) kbMap.put(entry.getId().toUpperCase().trim(), entry);
+        }
+
+        for (Vulnerability v : vulns) {
+            if (v.getSources() == null) {
+                v.setSources(new ArrayList<>());
+            }
+            if (v.getSources().isEmpty() && v.getCweId() != null) {
+                String cwe = v.getCweId().toUpperCase().trim();
+                if (kbMap.containsKey(cwe)) {
+                    KnowledgeBaseEntry entry = kbMap.get(cwe);
+                    v.getSources().add(new VulnerabilitySource(
+                            entry.getCweId(),
+                            entry.getTitle(),
+                            entry.getUrl()
+                    ));
+                }
+            }
+        }
     }
 }

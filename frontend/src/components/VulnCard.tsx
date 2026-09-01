@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactDiffViewer from 'react-diff-viewer-continued';
 import { Vulnerability } from '../api/scanner';
-import { AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, Copy, ShieldCheck, Tag, FileCode, Columns, Rows } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, CheckCircle2, Copy, ShieldCheck, Tag, FileCode, Columns, Rows, BookOpen, ExternalLink } from 'lucide-react';
 
 interface VulnCardProps {
   vulnerability: Vulnerability;
@@ -119,6 +119,39 @@ export const VulnCard: React.FC<VulnCardProps> = ({ vulnerability }) => {
           </span>
           <p className="type-body text-amber-200/80">{vulnerability.why_risky}</p>
         </div>
+
+        {/* RAG Knowledge Base Reference Sources */}
+        {vulnerability.sources && vulnerability.sources.length > 0 && (
+          <div className="bg-[#090d16]/90 border border-[#1f293d] rounded-xl p-3 space-y-2">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              <BookOpen className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Grounded Knowledge Base References</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {vulnerability.sources.map((src, idx) => {
+                const cweLabel = src.cwe_id || src.cweId || 'Reference';
+                return (
+                  <a
+                    key={idx}
+                    href={src.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={`${cweLabel}: ${src.title}`}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-mono bg-[#111625] text-cyan-300 hover:text-cyan-200 px-2.5 py-1 rounded-lg border border-[#1f293d] hover:border-cyan-600/50 hover:bg-[#151c2e] transition-all group"
+                  >
+                    <span className="font-semibold text-cyan-400">{cweLabel}</span>
+                    {src.title && (
+                      <span className="text-slate-400 max-w-[220px] truncate hidden sm:inline group-hover:text-slate-300">
+                        • {src.title}
+                      </span>
+                    )}
+                    <ExternalLink className="w-2.5 h-2.5 text-slate-500 group-hover:text-cyan-400" />
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Collapsible Remediation Fix with Side-by-Side Diff */}

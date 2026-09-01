@@ -6,12 +6,22 @@ public class ScanRequest {
     private String code;
     private String language = "auto";
 
+    @JsonProperty("use_rag")
+    private Boolean useRag = true;
+
     public ScanRequest() {}
 
     public ScanRequest(String code, String language) {
+        this(code, language, true);
+    }
+
+    public ScanRequest(String code, String language, Boolean useRag) {
         this.code = code;
         if (language != null) {
             this.language = language;
+        }
+        if (useRag != null) {
+            this.useRag = useRag;
         }
     }
 
@@ -29,5 +39,19 @@ public class ScanRequest {
 
     public void setLanguage(String language) {
         this.language = (language != null) ? language : "auto";
+    }
+
+    @JsonProperty("use_rag")
+    public Boolean getUseRag() {
+        return useRag;
+    }
+
+    @JsonProperty("use_rag")
+    public void setUseRag(Boolean useRag) {
+        this.useRag = (useRag != null) ? useRag : true;
+    }
+
+    public boolean isUseRag() {
+        return useRag == null || useRag;
     }
 }
